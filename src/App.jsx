@@ -2,15 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import confetti from "canvas-confetti";
 
 import { db } from "./firebase";
-import {
-  doc,
-  getDoc,
-  onSnapshot,
-  setDoc,
-  updateDoc,
-} from "firebase/firestore";
+import { doc, getDoc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
+import { defaultRoomState } from "./sync";
 
-import { defaultRoomState, normalizeRoomCode } from "./sync";
+// ✅ ROOM FIREBASE FIXE (pas de code à entrer)
+// Mets un truc pas trop devinable :
+const ROOM_ID = "gauthier-lea-2026-coeur";
 
 const LOVE_NOTES = [
   "Plus que quelques dodos et je te serre fort 💕",
@@ -34,15 +31,15 @@ const CHALLENGES = [
   "Écris une mini lettre de 5 lignes, simple et vraie.",
 ];
 
-function pad2(n) { return String(n).padStart(2, "0"); }
-
+function pad2(n) {
+  return String(n).padStart(2, "0");
+}
 function todayKeyLocal(d = new Date()) {
   const y = d.getFullYear();
   const m = pad2(d.getMonth() + 1);
   const day = pad2(d.getDate());
   return `${y}-${m}-${day}`;
 }
-
 function msToParts(ms) {
   const clamped = Math.max(0, ms);
   const s = Math.floor(clamped / 1000);
@@ -53,13 +50,11 @@ function msToParts(ms) {
   const seconds = rem % 60;
   return { days, hours, minutes, seconds };
 }
-
 function msUntilMidnightLocal(now = new Date()) {
   const next = new Date(now);
   next.setHours(24, 0, 0, 0);
   return next.getTime() - now.getTime();
 }
-
 function pickDeterministic(list, seedStr) {
   let h = 2166136261;
   for (let i = 0; i < seedStr.length; i++) {
@@ -70,14 +65,17 @@ function pickDeterministic(list, seedStr) {
 }
 
 export default function App() {
-  // UI
   const [tab, setTab] = useState("home"); // home | meet | playlist
-  const texts = useMemo(() => ({
-    title: "Avant de te revoir 💖",
-    subtitle: "Les retrouvailles de Gauthier et Léa",
-    dateLabel: "Date de nos retrouvailles :",
-    buttonDaily: "Débloquer le mot + défi du jour ✨",
-  }), []);
+
+  const texts = useMemo(
+    () => ({
+      title: "Avant de te revoir 💖",
+      subtitle: "Les retrouvailles de Gauthier et Léa",
+      dateLabel: "Date de nos retrouvailles :",
+      buttonDaily: "Débloquer le mot + défi du jour ✨",
+    }),
+    []
+  );
 
   // Time
   const [now, setNow] = useState(() => new Date());
@@ -85,35 +83,21 @@ export default function App() {
     const t = setInterval(() => setNow(new Date()), 250);
     return () => clearInterval(t);
   }, []);
-
   const todayKey = useMemo(() => todayKeyLocal(now), [now]);
   const untilMidnight = useMemo(() => msUntilMidnightLocal(now), [now]);
   const untilMidnightParts = useMemo(() => msToParts(untilMidnight), [untilMidnight]);
 
-  // Room (code couple) + Firestore sync
-  const [roomInput, setRoomInput] = useState(() => localStorage.getItem("roomCode") || "");
-  const [roomCode, setRoomCode] = useState(() => localStorage.getItem("roomCode") || "");
-  const [connected, setConnected] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const [syncError, setSyncError] = useState("");
-
-  const roomId = useMemo(() => normalizeRoomCode(roomCode), [roomCode]);
-  const roomRef = useMemo(() => (roomId ? doc(db, "rooms", roomId) : null), [roomId]);
-
-  // Shared state (the couple's truth)
+  // Firestore room
+  const roomRef = useMemo(() => doc(db, "rooms", ROOM_ID), []);
   const [shared, setShared] = useState(() => defaultRoomState());
+  const [syncing, setSyncing] = useState(true);
+  const [syncError, setSyncError] = useState("");
 
   // Prevent write-back loops
   const suppressNextWrite = useRef(false);
 
-  // Subscribe to firestore
+  // Subscribe to room
   useEffect(() => {
-    if (!roomRef) {
-      setConnected(false);
-      setSyncing(false);
-      return;
-    }
-
     setSyncError("");
     setSyncing(true);
 
@@ -122,20 +106,15 @@ export default function App() {
       async (snap) => {
         try {
           if (!snap.exists()) {
-            // Create room if missing
             const init = defaultRoomState();
             await setDoc(roomRef, init);
             suppressNextWrite.current = true;
             setShared(init);
-            setConnected(true);
             setSyncing(false);
             return;
           }
-
-          const data = snap.data();
           suppressNextWrite.current = true;
-          setShared(data);
-          setConnected(true);
+          setShared(snap.data());
           setSyncing(false);
         } catch (e) {
           setSyncError(String(e?.message || e));
@@ -151,16 +130,9 @@ export default function App() {
     return () => unsub();
   }, [roomRef]);
 
-  // Helper: update firestore (and local shared state)
   async function patchShared(patch) {
-    if (!roomRef) return;
-
-    // Update local instantly (optimistic)
-    setShared((prev) => ({
-      ...prev,
-      ...patch,
-      updatedAt: Date.now(),
-    }));
+    // Optimistic UI
+    setShared((prev) => ({ ...prev, ...patch, updatedAt: Date.now() }));
 
     // Avoid writing right after receiving snapshot
     if (suppressNextWrite.current) {
@@ -171,32 +143,18 @@ export default function App() {
     try {
       await updateDoc(roomRef, { ...patch, updatedAt: Date.now() });
     } catch (e) {
-      // fallback: if doc doesn't exist for some reason
+      // If room disappeared, recreate
       try {
         const snap = await getDoc(roomRef);
-        if (!snap.exists()) await setDoc(roomRef, { ...defaultRoomState(), ...patch, updatedAt: Date.now() });
+        if (!snap.exists()) {
+          await setDoc(roomRef, { ...defaultRoomState(), ...patch, updatedAt: Date.now() });
+        }
       } catch {}
       setSyncError(String(e?.message || e));
     }
   }
 
-  function joinRoom() {
-    const normalized = normalizeRoomCode(roomInput);
-    if (!normalized) return;
-    localStorage.setItem("roomCode", normalized);
-    setRoomCode(normalized);
-    confetti({ particleCount: 80, spread: 70, origin: { y: 0.75 } });
-  }
-
-  function leaveRoom() {
-    localStorage.removeItem("roomCode");
-    setRoomCode("");
-    setRoomInput("");
-    setConnected(false);
-    setShared(defaultRoomState());
-  }
-
-  // Countdown from shared.targetISO
+  // Countdown
   const targetDate = useMemo(() => (shared.targetISO ? new Date(shared.targetISO) : null), [shared.targetISO]);
   const remainingMs = useMemo(() => (targetDate ? targetDate.getTime() - now.getTime() : 0), [targetDate, now]);
   const parts = useMemo(() => msToParts(remainingMs), [remainingMs]);
@@ -213,7 +171,6 @@ export default function App() {
 
   const showTimer = targetDate && remainingMs > 0;
 
-  // Date picker handler (store ISO at local noon to avoid timezone issues)
   const targetDateStr = useMemo(() => {
     if (!shared.targetISO) return "";
     const d = new Date(shared.targetISO);
@@ -235,11 +192,11 @@ export default function App() {
     confetti({ particleCount: 90, spread: 70, origin: { y: 0.75 } });
   }
 
-  // Daily shared
+  // Daily
   const alreadyUnlockedToday = shared.daily?.dateKey === todayKey;
 
   function unlockDaily() {
-    const seed = `${todayKey}|${shared.targetISO || "no-target"}|ROOM:${roomId || "no-room"}`;
+    const seed = `${todayKey}|${shared.targetISO || "no-target"}|ROOM:${ROOM_ID}`;
     const love = pickDeterministic(LOVE_NOTES, seed + "|LOVE");
     const challenge = pickDeterministic(CHALLENGES, seed + "|CHALLENGE");
     const payload = { dateKey: todayKey, love, challenge };
@@ -247,26 +204,17 @@ export default function App() {
     confetti({ particleCount: 150, spread: 85, origin: { y: 0.7 } });
   }
 
-  // Meet shared
+  // Meet
   const meet = shared.meet || defaultRoomState().meet;
 
-  // Playlist shared
+  // Playlist
   const playlist = shared.playlist || [];
   const leaToday = useMemo(() => playlist.find((s) => s.dateKey === todayKey && s.who === "lea"), [playlist, todayKey]);
-  const gauToday = useMemo(() => playlist.find((s) => s.dateKey === todayKey && s.who === "gauthier"), [playlist, todayKey]);
+  const gauToday = useMemo(
+    () => playlist.find((s) => s.dateKey === todayKey && s.who === "gauthier"),
+    [playlist, todayKey]
+  );
 
-  const alreadyLeaToday = !!leaToday;
-  const alreadyGauToday = !!gauToday;
-
-  const playlistSorted = useMemo(() => {
-    const copy = [...playlist];
-    copy.sort((a, b) => (b.dateKey || "").localeCompare(a.dateKey || ""));
-    // keep duo order stable within date
-    copy.sort((a, b) => (b.dateKey || "").localeCompare(a.dateKey || "") || (a.who || "").localeCompare(b.who || ""));
-    return copy;
-  }, [playlist]);
-
-  // Duo forms
   const [leaTitle, setLeaTitle] = useState("");
   const [leaArtist, setLeaArtist] = useState("");
   const [leaLink, setLeaLink] = useState("");
@@ -305,57 +253,18 @@ export default function App() {
   }
 
   function removeSong(dateKey, who) {
-    const next = playlist.filter((s) => !(s.dateKey === dateKey && s.who === who));
-    patchShared({ playlist: next });
+    patchShared({ playlist: playlist.filter((s) => !(s.dateKey === dateKey && s.who === who)) });
   }
 
   function clearPlaylist() {
     patchShared({ playlist: [] });
   }
 
-  // UI: connect banner
-  function ConnectBanner() {
-    return (
-      <div className="card" style={{ marginBottom: 14 }}>
-        <div className="sectionTitle">
-          <span>Connexion couple</span>
-          <span className="badge">{connected ? "✅ Connecté" : "🔒 Non connecté"}</span>
-        </div>
-
-        <div className="label">Code couple (ex: gauthier-lea) :</div>
-        <input
-        className="input"
-        value={roomInput}
-        onChange={(e) => setRoomInput(e.target.value)}
-        onKeyDown={(e) => {
-        if (e.key === "Enter") joinRoom();
-        }}
-         placeholder="gauthier-lea"
-        />
-
-        <button className="btn" onClick={joinRoom} disabled={!roomInput.trim()}>
-          Rejoindre / Créer le couple ✨
-        </button>
-
-        {roomId && (
-          <div className="small">
-            Votre code actuel : <strong>{roomId}</strong>
-            <br />
-            Envoie le même code à ton copain 💗
-          </div>
-        )}
-
-        {syncing && <div className="small">Synchronisation…</div>}
-        {syncError && <div className="small">⚠️ {syncError}</div>}
-
-        {roomId && (
-          <button className="btn" style={{ marginTop: 10, padding: "10px 12px", fontSize: 14 }} onClick={leaveRoom}>
-            Se déconnecter
-          </button>
-        )}
-      </div>
-    );
-  }
+  const playlistSorted = useMemo(() => {
+    const copy = [...playlist];
+    copy.sort((a, b) => (b.dateKey || "").localeCompare(a.dateKey || "") || (a.who || "").localeCompare(b.who || ""));
+    return copy;
+  }, [playlist]);
 
   return (
     <div className="app">
@@ -367,8 +276,10 @@ export default function App() {
           <span className="badge">📅 {todayKey}</span>
         </div>
 
-        {/* Banner always visible so you never forget to sync */}
-        <ConnectBanner />
+        {/* Petit status discret */}
+        <div className="small" style={{ marginBottom: 12 }}>
+          {syncing ? "Synchronisation…" : syncError ? `⚠️ ${syncError}` : "✅ Synchronisé"}
+        </div>
 
         {/* HOME */}
         {tab === "home" && (
@@ -383,14 +294,7 @@ export default function App() {
               </div>
 
               <div className="label">{texts.dateLabel}</div>
-              <input
-                className="input"
-                type="date"
-                value={targetDateStr}
-                onChange={(e) => saveDate(e.target.value)}
-                disabled={!roomId}
-              />
-              {!roomId && <div className="small">Connecte un “code couple” pour modifier et partager 💗</div>}
+              <input className="input" type="date" value={targetDateStr} onChange={(e) => saveDate(e.target.value)} />
 
               <div className="result">{resultText}</div>
 
@@ -434,12 +338,10 @@ export default function App() {
                 </div>
               </div>
 
-              <button className="btn" onClick={unlockDaily} disabled={!roomId || alreadyUnlockedToday}>
-                {!roomId
-                  ? "Connecte votre code couple 💗"
-                  : alreadyUnlockedToday
-                    ? `Reviens demain (dans ${pad2(untilMidnightParts.hours)}:${pad2(untilMidnightParts.minutes)}:${pad2(untilMidnightParts.seconds)})`
-                    : texts.buttonDaily}
+              <button className="btn" onClick={unlockDaily} disabled={alreadyUnlockedToday}>
+                {alreadyUnlockedToday
+                  ? `Reviens demain (dans ${pad2(untilMidnightParts.hours)}:${pad2(untilMidnightParts.minutes)}:${pad2(untilMidnightParts.seconds)})`
+                  : texts.buttonDaily}
               </button>
 
               <div className="heart">💞</div>
@@ -451,7 +353,7 @@ export default function App() {
         {tab === "meet" && (
           <>
             <div className="h1">Notre retrouvailles ✈️💗</div>
-            <p className="p">Lieu + photo (lien) + infos de vol. Tout est partagé si vous avez le même code.</p>
+            <p className="p">Lieu + photo (lien) + infos de vol. Tout est synchronisé.</p>
 
             <div className="card">
               <div className="sectionTitle">
@@ -465,7 +367,6 @@ export default function App() {
                 value={meet.placeName}
                 onChange={(e) => patchShared({ meet: { ...meet, placeName: e.target.value } })}
                 placeholder="Aéroport / Gare / Hôtel…"
-                disabled={!roomId}
               />
 
               <div className="label">Ville :</div>
@@ -474,7 +375,6 @@ export default function App() {
                 value={meet.city}
                 onChange={(e) => patchShared({ meet: { ...meet, city: e.target.value } })}
                 placeholder="Paris"
-                disabled={!roomId}
               />
 
               <div className="label">Adresse (optionnel) :</div>
@@ -483,7 +383,6 @@ export default function App() {
                 value={meet.address}
                 onChange={(e) => patchShared({ meet: { ...meet, address: e.target.value } })}
                 placeholder="Terminal, hall…"
-                disabled={!roomId}
               />
 
               <div className="sep" />
@@ -505,7 +404,7 @@ export default function App() {
                   }}
                 />
               ) : (
-                <div className="small">Colle un lien d’image (Google Photos / iCloud / site…)</div>
+                <div className="small">Colle un lien d’image (site, Google Photos, iCloud…)</div>
               )}
 
               <div className="label">Lien image :</div>
@@ -514,7 +413,6 @@ export default function App() {
                 value={meet.imageUrl}
                 onChange={(e) => patchShared({ meet: { ...meet, imageUrl: e.target.value } })}
                 placeholder="https://..."
-                disabled={!roomId}
               />
 
               <div className="sep" />
@@ -528,11 +426,8 @@ export default function App() {
               <input
                 className="input"
                 value={meet.flight.airline}
-                onChange={(e) =>
-                  patchShared({ meet: { ...meet, flight: { ...meet.flight, airline: e.target.value } } })
-                }
+                onChange={(e) => patchShared({ meet: { ...meet, flight: { ...meet.flight, airline: e.target.value } } })}
                 placeholder="Air France"
-                disabled={!roomId}
               />
 
               <div className="label">Numéro de vol :</div>
@@ -543,7 +438,6 @@ export default function App() {
                   patchShared({ meet: { ...meet, flight: { ...meet.flight, flightNumber: e.target.value } } })
                 }
                 placeholder="AF1234"
-                disabled={!roomId}
               />
 
               <div className="row">
@@ -556,7 +450,6 @@ export default function App() {
                       patchShared({ meet: { ...meet, flight: { ...meet.flight, departureAirport: e.target.value } } })
                     }
                     placeholder="ORY"
-                    disabled={!roomId}
                   />
                 </div>
                 <div>
@@ -568,7 +461,6 @@ export default function App() {
                       patchShared({ meet: { ...meet, flight: { ...meet.flight, departureTime: e.target.value } } })
                     }
                     placeholder="10:35"
-                    disabled={!roomId}
                   />
                 </div>
               </div>
@@ -583,7 +475,6 @@ export default function App() {
                       patchShared({ meet: { ...meet, flight: { ...meet.flight, arrivalAirport: e.target.value } } })
                     }
                     placeholder="CDG"
-                    disabled={!roomId}
                   />
                 </div>
                 <div>
@@ -595,7 +486,6 @@ export default function App() {
                       patchShared({ meet: { ...meet, flight: { ...meet.flight, arrivalTime: e.target.value } } })
                     }
                     placeholder="12:05"
-                    disabled={!roomId}
                   />
                 </div>
               </div>
@@ -608,31 +498,26 @@ export default function App() {
                   patchShared({ meet: { ...meet, flight: { ...meet.flight, bookingRef: e.target.value } } })
                 }
                 placeholder="ABC123"
-                disabled={!roomId}
               />
 
               <div className="label">Notes (optionnel) :</div>
               <input
                 className="input"
                 value={meet.flight.notes}
-                onChange={(e) =>
-                  patchShared({ meet: { ...meet, flight: { ...meet.flight, notes: e.target.value } } })
-                }
+                onChange={(e) => patchShared({ meet: { ...meet, flight: { ...meet.flight, notes: e.target.value } } })}
                 placeholder="Terminal / porte / qui attend qui…"
-                disabled={!roomId}
               />
 
-              {!roomId && <div className="small">Connecte votre code couple pour remplir et partager 💗</div>}
               <div className="heart">🌸</div>
             </div>
           </>
         )}
 
-        {/* PLAYLIST DUO */}
+        {/* PLAYLIST */}
         {tab === "playlist" && (
           <>
             <div className="h1">Playlist DUO 🎧💗</div>
-            <p className="p">Une musique par jour pour Léa + une pour Gauthier (partagée en direct).</p>
+            <p className="p">Une musique par jour pour Léa + une pour Gauthier (synchronisé).</p>
 
             <div className="card">
               <div className="sectionTitle">
@@ -655,11 +540,8 @@ export default function App() {
                             🔗 <a href={leaToday.link} target="_blank" rel="noreferrer">Ouvrir</a>
                           </div>
                         )}
-                        <button
-                          className="btn"
-                          style={{ marginTop: 10, padding: "10px 12px", fontSize: 14 }}
+                        <button className="btn" style={{ marginTop: 10, padding: "10px 12px", fontSize: 14 }}
                           onClick={() => removeSong(todayKey, "lea")}
-                          disabled={!roomId}
                         >
                           Supprimer (Léa)
                         </button>
@@ -684,11 +566,8 @@ export default function App() {
                             🔗 <a href={gauToday.link} target="_blank" rel="noreferrer">Ouvrir</a>
                           </div>
                         )}
-                        <button
-                          className="btn"
-                          style={{ marginTop: 10, padding: "10px 12px", fontSize: 14 }}
+                        <button className="btn" style={{ marginTop: 10, padding: "10px 12px", fontSize: 14 }}
                           onClick={() => removeSong(todayKey, "gauthier")}
-                          disabled={!roomId}
                         >
                           Supprimer (Gauthier)
                         </button>
@@ -711,57 +590,55 @@ export default function App() {
                 <span className="badge">➕</span>
               </div>
 
-              {!roomId && <div className="small">Connecte votre code couple pour ajouter et partager 💗</div>}
-
               <div className="row">
                 <div>
                   <div className="label">Léa — Titre :</div>
-                  <input className="input" value={leaTitle} onChange={(e) => setLeaTitle(e.target.value)} placeholder="Titre" disabled={!roomId} />
+                  <input className="input" value={leaTitle} onChange={(e) => setLeaTitle(e.target.value)} placeholder="Titre" />
                 </div>
                 <div>
                   <div className="label">Gauthier — Titre :</div>
-                  <input className="input" value={gauTitle} onChange={(e) => setGauTitle(e.target.value)} placeholder="Titre" disabled={!roomId} />
+                  <input className="input" value={gauTitle} onChange={(e) => setGauTitle(e.target.value)} placeholder="Titre" />
                 </div>
               </div>
 
               <div className="row">
                 <div>
                   <div className="label">Artiste (Léa) :</div>
-                  <input className="input" value={leaArtist} onChange={(e) => setLeaArtist(e.target.value)} placeholder="Artiste" disabled={!roomId} />
+                  <input className="input" value={leaArtist} onChange={(e) => setLeaArtist(e.target.value)} placeholder="Artiste" />
                 </div>
                 <div>
                   <div className="label">Artiste (Gauthier) :</div>
-                  <input className="input" value={gauArtist} onChange={(e) => setGauArtist(e.target.value)} placeholder="Artiste" disabled={!roomId} />
+                  <input className="input" value={gauArtist} onChange={(e) => setGauArtist(e.target.value)} placeholder="Artiste" />
                 </div>
               </div>
 
               <div className="row">
                 <div>
                   <div className="label">Lien (Léa) :</div>
-                  <input className="input" value={leaLink} onChange={(e) => setLeaLink(e.target.value)} placeholder="Spotify/Apple/YouTube" disabled={!roomId} />
+                  <input className="input" value={leaLink} onChange={(e) => setLeaLink(e.target.value)} placeholder="Spotify/Apple/YouTube" />
                 </div>
                 <div>
                   <div className="label">Lien (Gauthier) :</div>
-                  <input className="input" value={gauLink} onChange={(e) => setGauLink(e.target.value)} placeholder="Spotify/Apple/YouTube" disabled={!roomId} />
+                  <input className="input" value={gauLink} onChange={(e) => setGauLink(e.target.value)} placeholder="Spotify/Apple/YouTube" />
                 </div>
               </div>
 
               <div className="row">
                 <div>
                   <div className="label">Petit mot (Léa) :</div>
-                  <textarea className="textarea" value={leaNote} onChange={(e) => setLeaNote(e.target.value)} placeholder="Pourquoi cette musique ? 💗" disabled={!roomId} />
+                  <textarea className="textarea" value={leaNote} onChange={(e) => setLeaNote(e.target.value)} placeholder="Pourquoi cette musique ? 💗" />
                 </div>
                 <div>
                   <div className="label">Petit mot (Gauthier) :</div>
-                  <textarea className="textarea" value={gauNote} onChange={(e) => setGauNote(e.target.value)} placeholder="Pourquoi cette musique ? 💗" disabled={!roomId} />
+                  <textarea className="textarea" value={gauNote} onChange={(e) => setGauNote(e.target.value)} placeholder="Pourquoi cette musique ? 💗" />
                 </div>
               </div>
 
               <div className="row">
-                <button className="btn" onClick={() => addDuoSong("lea")} disabled={!roomId || !leaTitle.trim() || alreadyLeaToday}>
+                <button className="btn" onClick={() => addDuoSong("lea")} disabled={!leaTitle.trim() || !!leaToday}>
                   Ajouter Léa ✨
                 </button>
-                <button className="btn" onClick={() => addDuoSong("gauthier")} disabled={!roomId || !gauTitle.trim() || alreadyGauToday}>
+                <button className="btn" onClick={() => addDuoSong("gauthier")} disabled={!gauTitle.trim() || !!gauToday}>
                   Ajouter Gauthier ✨
                 </button>
               </div>
@@ -791,11 +668,8 @@ export default function App() {
                           🔗 <a href={s.link} target="_blank" rel="noreferrer">Ouvrir</a>
                         </div>
                       )}
-                      <button
-                        className="btn"
-                        style={{ marginTop: 10, padding: "10px 12px", fontSize: 14 }}
+                      <button className="btn" style={{ marginTop: 10, padding: "10px 12px", fontSize: 14 }}
                         onClick={() => removeSong(s.dateKey, s.who)}
-                        disabled={!roomId}
                       >
                         Supprimer
                       </button>
@@ -805,7 +679,7 @@ export default function App() {
               )}
 
               {playlistSorted.length > 0 && (
-                <button className="btn" style={{ marginTop: 12 }} onClick={clearPlaylist} disabled={!roomId}>
+                <button className="btn" style={{ marginTop: 12 }} onClick={clearPlaylist}>
                   Tout effacer (playlist)
                 </button>
               )}
@@ -822,12 +696,10 @@ export default function App() {
               <div className="tabicon">🏠</div>
               Accueil
             </button>
-
             <button className={`tabbtn ${tab === "meet" ? "tabbtnActive" : ""}`} onClick={() => setTab("meet")}>
               <div className="tabicon">📍</div>
               Lieu
             </button>
-
             <button className={`tabbtn ${tab === "playlist" ? "tabbtnActive" : ""}`} onClick={() => setTab("playlist")}>
               <div className="tabicon">🎧</div>
               Playlist
