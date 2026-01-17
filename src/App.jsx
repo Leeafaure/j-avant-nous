@@ -10,36 +10,78 @@ import { defaultRoomState } from "./sync";
 const ROOM_ID = "gauthier-lea-2026-coeur";
 
 const LOVE_NOTES = [
-  "Plus que quelques dodos et je te serre fort 💕",
-  "Aujourd’hui je t’aime encore un peu plus.",
-  "Ton nom = sourire automatique.",
-  "Je garde un câlin en réserve pour le jour J.",
-  "Bientôt : toi, moi, et zéro distance.",
-  "Je t’envoie un bisou de poche 😘",
-  "Tu es mon endroit préféré.",
-  "Je pense à toi là, maintenant 💖",
+  "Je fais semblant d’être sage… mais je pense à toi tout le temps 😇",
+  "Mon programme du jour : te manquer. Encore.",
+  "J’ai mis ton prénom dans ma to-do list ✅",
+  "Je suis en manque… de toi. Et de tes câlins.",
+  "Mon cœur a demandé un remboursement de distance.",
+  "Bientôt je reviens te coller. Officiellement.",
+  "Je te préviens : je vais te faire perdre ton espace vital 💞",
+  "À ce stade, tu es littéralement mon obsession préférée.",
+  "Je t’attends… mais je boude un peu 😤💖",
+  "Si tu veux savoir où je suis : dans tes pensées 😌",
+
+  "Prépare-toi… je vais te dévorer de bisous 💋",
+  "J’ai hâte de te revoir… et de ne plus te laisser respirer (un peu) 😇",
+  "Mon corps te réclame. Voilà c’est dit 😌",
+  "Je pense à toi… et c’est rarement innocent.",
+  "Je vais te sauter dessus. Avec amour. Beaucoup d’amour.",
+  "Je te préviens : mon câlin va durer minimum 3 heures.",
+  "Quand je te revois : je t’embrasse, et après on discute (peut-être) 😈",
+  "Je veux juste être dans tes bras… et y rester.",
+  "Bientôt je reprends mes droits : bisous illimités ✅",
+  "Je t’aime. Et je te veux. Simple.",
+
+  "Distance : 1 / Moi : 0 / Mais je reviens gagner 😈",
+  "J’ai hâte de te retrouver… j’ai des intentions très claires 😇",
+  "Je suis prête à te coller comme une appli inutile : impossible à supprimer 💅",
+  "Je t’envoie un bisou… mais IRL ça sera une attaque.",
+  "J’ai faim. De toi. Oui bon.",
+  "Tu me manques au point d’être un besoin vital 😭💋",
+  "Quand je te revois je fais la fille tranquille… 2 minutes.",
+  "Je compte les jours… et je prépare mon plan de bisous 😈",
+  "Spoiler : tu vas pas t’en sortir indemne 😘",
+  "Ça devient urgent là. Urgent câlin. Urgent toi.",
 ];
 
 const CHALLENGES = [
-  "Envoie-lui : “Ce que j’aime chez toi aujourd’hui, c’est…”",
-  "Envoie une photo d’un truc qui te fait penser à lui/elle.",
-  "Partage une chanson ‘mood nous’ (un titre).",
-  "Écris un souvenir en 3 phrases (où / quoi / pourquoi).",
-  "Écris 3 idées pour votre prochaine journée ensemble.",
-  "Envoie un vocal de 10 secondes : “j’ai hâte de…”",
-  "Fais un compliment super précis (un détail !).",
-  "Écris une mini lettre de 5 lignes, simple et vraie.",
+  "Envoie-lui un message : “J’ai une annonce importante : tu me manques.”",
+  "Fais une ‘review’ de ton copain : ⭐⭐⭐⭐⭐ + une phrase.",
+  "Envoie un emoji qui résume ton humeur du jour + “à cause de toi”.",
+  "Décris-le en 3 mots… puis ajoute “et c’est MON préféré”.",
+  "Envoie “Je pense à toi” mais en version dramatique (exagérée 😭🎭).",
+  "Fais une fausse dispute : “Tu sais quoi ? Je t’aime trop.” 😤💖",
+  "Envoie une photo de ton outfit du jour (même en pyjama 😌).",
+  "Envoie un GIF qui dit EXACTEMENT ce que tu ressens.",
+
+  "Envoie-lui : “Je te préviens… quand je te vois, je te lâche plus 😇”",
+  "Envoie un vocal (5 sec) : “Je te veux là, maintenant.”",
+  "Écris : “J’ai envie de…” et finis la phrase avec un truc très doux (ou pas 😈).",
+  "Dis-lui : “Mon câlin de retrouvailles va durer ___ minutes”.",
+  "Envoie : “J’ai pensé à toi… et c’était PAS innocent.”",
+  "Envoie un message : “Tu me manques physiquement.” 😮‍💨",
+  "Écris une phrase interdite : “Je serai sage…” (mens un peu).",
+  "Donne-lui une mission : “Ce soir tu dois penser à moi avant de dormir.”",
+
+  "Défi 10 secondes : chacun envoie un vocal “j’ai hâte de…”",
+  "Défi souvenir : raconte un moment drôle de vous deux en 2 phrases.",
+  "Défi imagination : votre prochaine soirée idéale en 3 étapes.",
+  "Défi teasing : “Quand on se revoit, je te fais…” (bisou/resto/massage 😇).",
+  "Défi secret : chacun écrit une chose qu’il/elle veut refaire ensemble.",
+  "Défi musique : choisis une chanson qui te donne envie de l’embrasser.",
 ];
 
 function pad2(n) {
   return String(n).padStart(2, "0");
 }
+
 function todayKeyLocal(d = new Date()) {
   const y = d.getFullYear();
   const m = pad2(d.getMonth() + 1);
   const day = pad2(d.getDate());
   return `${y}-${m}-${day}`;
 }
+
 function msToParts(ms) {
   const clamped = Math.max(0, ms);
   const s = Math.floor(clamped / 1000);
@@ -50,11 +92,13 @@ function msToParts(ms) {
   const seconds = rem % 60;
   return { days, hours, minutes, seconds };
 }
+
 function msUntilMidnightLocal(now = new Date()) {
   const next = new Date(now);
   next.setHours(24, 0, 0, 0);
   return next.getTime() - now.getTime();
 }
+
 function pickDeterministic(list, seedStr) {
   let h = 2166136261;
   for (let i = 0; i < seedStr.length; i++) {
@@ -62,6 +106,54 @@ function pickDeterministic(list, seedStr) {
     h = Math.imul(h, 16777619);
   }
   return list[Math.abs(h) % list.length];
+}
+
+// Moments clés
+function clampMin0(n) {
+  return Math.max(0, n);
+}
+function nightsLeft(days) {
+  return clampMin0(days);
+}
+function weekendsLeft(fromDate, toDate) {
+  if (!fromDate || !toDate) return 0;
+  if (toDate <= fromDate) return 0;
+
+  const start = new Date(fromDate);
+  start.setHours(12, 0, 0, 0);
+  const end = new Date(toDate);
+  end.setHours(12, 0, 0, 0);
+
+  let count = 0;
+  const d = new Date(start);
+
+  while (d < end) {
+    if (d.getDay() === 6) count += 1; // samedi
+    d.setDate(d.getDate() + 1);
+  }
+  return count;
+}
+function nextMilestone(days) {
+  const caps = [60, 45, 30, 21, 14, 10, 7, 5, 3, 2, 1, 0];
+  const d = Number.isFinite(days) ? days : null;
+  if (d === null) return null;
+  for (const c of caps) if (d > c) return c;
+  return null;
+}
+function milestoneLabel(cap) {
+  if (cap === 0) return "Aujourd’hui 💖";
+  if (cap === 1) return "1 jour";
+  return `${cap} jours`;
+}
+function vibeLine(days) {
+  if (days === null) return "";
+  if (days < 0) return "On s’est déjà retrouvés… et j’en veux encore 😈";
+  if (days === 0) return "C’est le jour J. Respire… j’arrive 💞";
+  if (days <= 3) return "Ok là… c’est imminent 😈💗";
+  if (days <= 7) return "Semaine finale. Je tiens plus 😭💋";
+  if (days <= 14) return "Deux semaines… je commence à préparer les bisous 😇";
+  if (days <= 30) return "Ça se rapproche. Et je souris bêtement.";
+  return "On avance, un jour à la fois. Team nous 💪💖";
 }
 
 export default function App() {
@@ -83,6 +175,7 @@ export default function App() {
     const t = setInterval(() => setNow(new Date()), 250);
     return () => clearInterval(t);
   }, []);
+
   const todayKey = useMemo(() => todayKeyLocal(now), [now]);
   const untilMidnight = useMemo(() => msUntilMidnightLocal(now), [now]);
   const untilMidnightParts = useMemo(() => msToParts(untilMidnight), [untilMidnight]);
@@ -96,7 +189,6 @@ export default function App() {
   // Prevent write-back loops
   const suppressNextWrite = useRef(false);
 
-  // Subscribe to room
   useEffect(() => {
     setSyncError("");
     setSyncing(true);
@@ -131,10 +223,8 @@ export default function App() {
   }, [roomRef]);
 
   async function patchShared(patch) {
-    // Optimistic UI
     setShared((prev) => ({ ...prev, ...patch, updatedAt: Date.now() }));
 
-    // Avoid writing right after receiving snapshot
     if (suppressNextWrite.current) {
       suppressNextWrite.current = false;
       return;
@@ -143,7 +233,6 @@ export default function App() {
     try {
       await updateDoc(roomRef, { ...patch, updatedAt: Date.now() });
     } catch (e) {
-      // If room disappeared, recreate
       try {
         const snap = await getDoc(roomRef);
         if (!snap.exists()) {
@@ -191,6 +280,14 @@ export default function App() {
     patchShared({ targetISO: iso });
     confetti({ particleCount: 90, spread: 70, origin: { y: 0.75 } });
   }
+
+  // Moments clés calcul
+  const dodos = daysDiff !== null ? nightsLeft(daysDiff) : null;
+  const weekends = targetDate ? weekendsLeft(now, targetDate) : null;
+  const cap = daysDiff !== null ? nextMilestone(daysDiff) : null;
+  const capText = cap !== null ? milestoneLabel(cap) : "";
+  const daysToCap = cap !== null ? Math.max(0, daysDiff - cap) : null;
+  const vibe = vibeLine(daysDiff);
 
   // Daily
   const alreadyUnlockedToday = shared.daily?.dateKey === todayKey;
@@ -244,9 +341,15 @@ export default function App() {
     patchShared({ playlist: next });
 
     if (isLea) {
-      setLeaTitle(""); setLeaArtist(""); setLeaLink(""); setLeaNote("");
+      setLeaTitle("");
+      setLeaArtist("");
+      setLeaLink("");
+      setLeaNote("");
     } else {
-      setGauTitle(""); setGauArtist(""); setGauLink(""); setGauNote("");
+      setGauTitle("");
+      setGauArtist("");
+      setGauLink("");
+      setGauNote("");
     }
 
     confetti({ particleCount: 120, spread: 80, origin: { y: 0.7 } });
@@ -276,7 +379,6 @@ export default function App() {
           <span className="badge">📅 {todayKey}</span>
         </div>
 
-        {/* Petit status discret */}
         <div className="small" style={{ marginBottom: 12 }}>
           {syncing ? "Synchronisation…" : syncError ? `⚠️ ${syncError}` : "✅ Synchronisé"}
         </div>
@@ -303,19 +405,22 @@ export default function App() {
                   <div className="sub">
                     Temps restant :{" "}
                     <strong style={{ fontVariantNumeric: "tabular-nums" }}>
-                      {pad2(parts.hours)}:{pad2(parts.minutes)}:{pad2(parts.seconds)}
+                      {parts.days}j {pad2(parts.hours)}h {pad2(parts.minutes)}m {pad2(parts.seconds)}s
                     </strong>
                   </div>
 
+                  {/* ✅ Timer version 1 : Jours / Heures / Secondes */}
                   <div className="timerRow">
+                    <div className="tile">
+                      <div className="tileLabel">Jours</div>
+                      <div className="tileValue">{parts.days}</div>
+                    </div>
+
                     <div className="tile">
                       <div className="tileLabel">Heures</div>
                       <div className="tileValue">{pad2(parts.hours)}</div>
                     </div>
-                    <div className="tile">
-                      <div className="tileLabel">Minutes</div>
-                      <div className="tileValue">{pad2(parts.minutes)}</div>
-                    </div>
+
                     <div className="tile">
                       <div className="tileLabel">Secondes</div>
                       <div className="tileValue">{pad2(parts.seconds)}</div>
@@ -324,8 +429,49 @@ export default function App() {
                 </>
               )}
 
+              {/* Moments clés */}
               <div className="sep" />
 
+              <div className="sectionTitle">
+                <span>Moments clés</span>
+                <span className="badge">⏳</span>
+              </div>
+
+              <div className="grid2">
+                <div className="panel">
+                  <div className="panelTitle">Dodos</div>
+                  <div className="panelBody">{dodos === null ? "—" : `${dodos} dodos`}</div>
+                </div>
+
+                <div className="panel">
+                  <div className="panelTitle blue">Week-ends</div>
+                  <div className="panelBody">
+                    {weekends === null ? "—" : `${weekends} week-end${weekends > 1 ? "s" : ""}`}
+                  </div>
+                </div>
+              </div>
+
+              {cap !== null && (
+                <div className="sub" style={{ marginTop: 10 }}>
+                  Prochain cap : <strong>{capText}</strong>
+                  {daysToCap !== null && daysToCap > 0 && (
+                    <>
+                      {" "}
+                      — encore <strong>{daysToCap}</strong> jour{daysToCap > 1 ? "s" : ""} ✨
+                    </>
+                  )}
+                </div>
+              )}
+
+              {vibe && (
+                <div className="sub" style={{ marginTop: 8, fontWeight: 700 }}>
+                  {vibe}
+                </div>
+              )}
+
+              <div className="sep" />
+
+              {/* Daily */}
               <div className="grid2">
                 <div className="panel">
                   <div className="panelTitle">Mot du jour</div>
@@ -340,7 +486,9 @@ export default function App() {
 
               <button className="btn" onClick={unlockDaily} disabled={alreadyUnlockedToday}>
                 {alreadyUnlockedToday
-                  ? `Reviens demain (dans ${pad2(untilMidnightParts.hours)}:${pad2(untilMidnightParts.minutes)}:${pad2(untilMidnightParts.seconds)})`
+                  ? `Reviens demain (dans ${pad2(untilMidnightParts.hours)}:${pad2(untilMidnightParts.minutes)}:${pad2(
+                      untilMidnightParts.seconds
+                    )})`
                   : texts.buttonDaily}
               </button>
 
@@ -532,15 +680,21 @@ export default function App() {
                     {leaToday ? (
                       <>
                         <div style={{ fontWeight: 900 }}>
-                          {leaToday.title}{leaToday.artist ? ` — ${leaToday.artist}` : ""}
+                          {leaToday.title}
+                          {leaToday.artist ? ` — ${leaToday.artist}` : ""}
                         </div>
                         {leaToday.note && <div className="sub">💬 {leaToday.note}</div>}
                         {leaToday.link && (
                           <div className="sub" style={{ marginTop: 6 }}>
-                            🔗 <a href={leaToday.link} target="_blank" rel="noreferrer">Ouvrir</a>
+                            🔗{" "}
+                            <a href={leaToday.link} target="_blank" rel="noreferrer">
+                              Ouvrir
+                            </a>
                           </div>
                         )}
-                        <button className="btn" style={{ marginTop: 10, padding: "10px 12px", fontSize: 14 }}
+                        <button
+                          className="btn"
+                          style={{ marginTop: 10, padding: "10px 12px", fontSize: 14 }}
                           onClick={() => removeSong(todayKey, "lea")}
                         >
                           Supprimer (Léa)
@@ -558,15 +712,21 @@ export default function App() {
                     {gauToday ? (
                       <>
                         <div style={{ fontWeight: 900 }}>
-                          {gauToday.title}{gauToday.artist ? ` — ${gauToday.artist}` : ""}
+                          {gauToday.title}
+                          {gauToday.artist ? ` — ${gauToday.artist}` : ""}
                         </div>
                         {gauToday.note && <div className="sub">💬 {gauToday.note}</div>}
                         {gauToday.link && (
                           <div className="sub" style={{ marginTop: 6 }}>
-                            🔗 <a href={gauToday.link} target="_blank" rel="noreferrer">Ouvrir</a>
+                            🔗{" "}
+                            <a href={gauToday.link} target="_blank" rel="noreferrer">
+                              Ouvrir
+                            </a>
                           </div>
                         )}
-                        <button className="btn" style={{ marginTop: 10, padding: "10px 12px", fontSize: 14 }}
+                        <button
+                          className="btn"
+                          style={{ marginTop: 10, padding: "10px 12px", fontSize: 14 }}
                           onClick={() => removeSong(todayKey, "gauthier")}
                         >
                           Supprimer (Gauthier)
@@ -580,7 +740,8 @@ export default function App() {
               </div>
 
               <div className="small">
-                Prochaine musique dans {pad2(untilMidnightParts.hours)}:{pad2(untilMidnightParts.minutes)}:{pad2(untilMidnightParts.seconds)} 💖
+                Prochaine musique dans {pad2(untilMidnightParts.hours)}:{pad2(untilMidnightParts.minutes)}:
+                {pad2(untilMidnightParts.seconds)} 💖
               </div>
 
               <div className="sep" />
@@ -658,17 +819,23 @@ export default function App() {
                     <div className="item" key={`${s.dateKey}-${s.who}`}>
                       <div className="itemTop">
                         <div className="itemTitle">
-                          {s.who === "lea" ? "Léa" : "Gauthier"} — {s.title}{s.artist ? ` — ${s.artist}` : ""}
+                          {s.who === "lea" ? "Léa" : "Gauthier"} — {s.title}
+                          {s.artist ? ` — ${s.artist}` : ""}
                         </div>
                         <div className="itemMeta">{s.dateKey}</div>
                       </div>
                       {s.note && <div className="sub">💬 {s.note}</div>}
                       {s.link && (
                         <div className="sub" style={{ marginTop: 6 }}>
-                          🔗 <a href={s.link} target="_blank" rel="noreferrer">Ouvrir</a>
+                          🔗{" "}
+                          <a href={s.link} target="_blank" rel="noreferrer">
+                            Ouvrir
+                          </a>
                         </div>
                       )}
-                      <button className="btn" style={{ marginTop: 10, padding: "10px 12px", fontSize: 14 }}
+                      <button
+                        className="btn"
+                        style={{ marginTop: 10, padding: "10px 12px", fontSize: 14 }}
                         onClick={() => removeSong(s.dateKey, s.who)}
                       >
                         Supprimer
