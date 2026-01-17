@@ -20,7 +20,6 @@ const LOVE_NOTES = [
   "À ce stade, tu es littéralement mon obsession préférée.",
   "Je t’attends… mais je boude un peu 😤💖",
   "Si tu veux savoir où je suis : dans tes pensées 😌",
-
   "Prépare-toi… je vais te dévorer de bisous 💋",
   "J’ai hâte de te revoir… et de ne plus te laisser respirer (un peu) 😇",
   "Mon corps te réclame. Voilà c’est dit 😌",
@@ -31,7 +30,6 @@ const LOVE_NOTES = [
   "Je veux juste être dans tes bras… et y rester.",
   "Bientôt je reprends mes droits : bisous illimités ✅",
   "Je t’aime. Et je te veux. Simple.",
-
   "Distance : 1 / Moi : 0 / Mais je reviens gagner 😈",
   "J’ai hâte de te retrouver… j’ai des intentions très claires 😇",
   "Je suis prête à te coller comme une appli inutile : impossible à supprimer 💅",
@@ -53,7 +51,6 @@ const CHALLENGES = [
   "Fais une fausse dispute : “Tu sais quoi ? Je t’aime trop.” 😤💖",
   "Envoie une photo de ton outfit du jour (même en pyjama 😌).",
   "Envoie un GIF qui dit EXACTEMENT ce que tu ressens.",
-
   "Envoie-lui : “Je te préviens… quand je te vois, je te lâche plus 😇”",
   "Envoie un vocal (5 sec) : “Je te veux là, maintenant.”",
   "Écris : “J’ai envie de…” et finis la phrase avec un truc très doux (ou pas 😈).",
@@ -62,7 +59,6 @@ const CHALLENGES = [
   "Envoie un message : “Tu me manques physiquement.” 😮‍💨",
   "Écris une phrase interdite : “Je serai sage…” (mens un peu).",
   "Donne-lui une mission : “Ce soir tu dois penser à moi avant de dormir.”",
-
   "Défi 10 secondes : chacun envoie un vocal “j’ai hâte de…”",
   "Défi souvenir : raconte un moment drôle de vous deux en 2 phrases.",
   "Défi imagination : votre prochaine soirée idéale en 3 étapes.",
@@ -74,14 +70,12 @@ const CHALLENGES = [
 function pad2(n) {
   return String(n).padStart(2, "0");
 }
-
 function todayKeyLocal(d = new Date()) {
   const y = d.getFullYear();
   const m = pad2(d.getMonth() + 1);
   const day = pad2(d.getDate());
   return `${y}-${m}-${day}`;
 }
-
 function msToParts(ms) {
   const clamped = Math.max(0, ms);
   const s = Math.floor(clamped / 1000);
@@ -92,13 +86,11 @@ function msToParts(ms) {
   const seconds = rem % 60;
   return { days, hours, minutes, seconds };
 }
-
 function msUntilMidnightLocal(now = new Date()) {
   const next = new Date(now);
   next.setHours(24, 0, 0, 0);
   return next.getTime() - now.getTime();
 }
-
 function pickDeterministic(list, seedStr) {
   let h = 2166136261;
   for (let i = 0; i < seedStr.length; i++) {
@@ -108,7 +100,7 @@ function pickDeterministic(list, seedStr) {
   return list[Math.abs(h) % list.length];
 }
 
-// Moments clés
+/* Moments clés */
 function clampMin0(n) {
   return Math.max(0, n);
 }
@@ -126,7 +118,6 @@ function weekendsLeft(fromDate, toDate) {
 
   let count = 0;
   const d = new Date(start);
-
   while (d < end) {
     if (d.getDay() === 6) count += 1; // samedi
     d.setDate(d.getDate() + 1);
@@ -156,8 +147,15 @@ function vibeLine(days) {
   return "On avance, un jour à la fois. Team nous 💪💖";
 }
 
+function buildMapsLink({ city, placeName, address }) {
+  const q = [placeName, address, city].filter(Boolean).map((s) => String(s).trim()).filter(Boolean).join(", ");
+  if (!q) return "";
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
+}
+
 export default function App() {
   const [tab, setTab] = useState("home"); // home | meet | playlist
+  const [editMeet, setEditMeet] = useState(false);
 
   const texts = useMemo(
     () => ({
@@ -303,6 +301,30 @@ export default function App() {
 
   // Meet
   const meet = shared.meet || defaultRoomState().meet;
+  const mapsLink = useMemo(() => buildMapsLink(meet), [meet]);
+  const isMeetEmpty = useMemo(() => {
+    const f = meet?.flight || {};
+    const emptyStr = (v) => !String(v || "").trim();
+    return (
+      emptyStr(meet.placeName) &&
+      emptyStr(meet.city) &&
+      emptyStr(meet.address) &&
+      emptyStr(meet.imageUrl) &&
+      emptyStr(f.airline) &&
+      emptyStr(f.flightNumber) &&
+      emptyStr(f.departureAirport) &&
+      emptyStr(f.departureTime) &&
+      emptyStr(f.arrivalAirport) &&
+      emptyStr(f.arrivalTime) &&
+      emptyStr(f.bookingRef) &&
+      emptyStr(f.notes)
+    );
+  }, [meet]);
+
+  // Auto: si on va sur onglet lieu et c'est vide → édition
+  useEffect(() => {
+    if (tab === "meet" && isMeetEmpty) setEditMeet(true);
+  }, [tab, isMeetEmpty]);
 
   // Playlist
   const playlist = shared.playlist || [];
@@ -415,12 +437,10 @@ export default function App() {
                       <div className="tileLabel">Jours</div>
                       <div className="tileValue">{parts.days}</div>
                     </div>
-
                     <div className="tile">
                       <div className="tileLabel">Heures</div>
                       <div className="tileValue">{pad2(parts.hours)}</div>
                     </div>
-
                     <div className="tile">
                       <div className="tileLabel">Secondes</div>
                       <div className="tileValue">{pad2(parts.seconds)}</div>
@@ -431,7 +451,6 @@ export default function App() {
 
               {/* Moments clés */}
               <div className="sep" />
-
               <div className="sectionTitle">
                 <span>Moments clés</span>
                 <span className="badge">⏳</span>
@@ -500,161 +519,233 @@ export default function App() {
         {/* LIEU */}
         {tab === "meet" && (
           <>
-            <div className="h1">Notre retrouvailles ✈️💗</div>
-            <p className="p">Lieu + photo (lien) + infos de vol. Tout est synchronisé.</p>
+            <div className="h1">Notre lieu ✈️💗</div>
+            <p className="p">On remplit de temps en temps, et ensuite on a un joli résumé.</p>
 
             <div className="card">
               <div className="sectionTitle">
-                <span>Lieu</span>
-                <span className="badge">📍</span>
+                <span>{editMeet ? "Modifier le lieu" : "Résumé du lieu"}</span>
+                <span className="badge">{editMeet ? "✏️" : "✅"}</span>
               </div>
 
-              <div className="label">Nom du lieu :</div>
-              <input
-                className="input"
-                value={meet.placeName}
-                onChange={(e) => patchShared({ meet: { ...meet, placeName: e.target.value } })}
-                placeholder="Aéroport / Gare / Hôtel…"
-              />
+              {!editMeet ? (
+                <>
+                  {/* PHOTO */}
+                  {meet.imageUrl ? (
+                    <img
+                      src={meet.imageUrl}
+                      alt="Lieu"
+                      style={{
+                        width: "100%",
+                        borderRadius: 16,
+                        border: "1px solid rgba(90,42,74,.10)",
+                        boxShadow: "0 12px 26px rgba(0,0,0,.08)",
+                        marginBottom: 12,
+                      }}
+                    />
+                  ) : (
+                    <div className="small" style={{ marginBottom: 12 }}>
+                      Aucune image pour l’instant ✨
+                    </div>
+                  )}
 
-              <div className="label">Ville :</div>
-              <input
-                className="input"
-                value={meet.city}
-                onChange={(e) => patchShared({ meet: { ...meet, city: e.target.value } })}
-                placeholder="Paris"
-              />
+                  {/* RESUME */}
+                  <div className="grid2">
+                    <div className="panel">
+                      <div className="panelTitle">Ville</div>
+                      <div className="panelBody">{meet.city?.trim() || "—"}</div>
+                    </div>
 
-              <div className="label">Adresse (optionnel) :</div>
-              <input
-                className="input"
-                value={meet.address}
-                onChange={(e) => patchShared({ meet: { ...meet, address: e.target.value } })}
-                placeholder="Terminal, hall…"
-              />
+                    <div className="panel">
+                      <div className="panelTitle blue">Lieu</div>
+                      <div className="panelBody">{meet.placeName?.trim() || "—"}</div>
+                    </div>
+                  </div>
 
-              <div className="sep" />
+                  <div className="panel" style={{ marginTop: 10 }}>
+                    <div className="panelTitle">Adresse</div>
+                    <div className="panelBody">{meet.address?.trim() || "—"}</div>
+                  </div>
 
-              <div className="sectionTitle">
-                <span>Photo (lien)</span>
-                <span className="badge">🖼️</span>
-              </div>
+                  {mapsLink && (
+                    <button
+                      className="btn"
+                      style={{ marginTop: 12, padding: "10px 12px", fontSize: 14 }}
+                      onClick={() => window.open(mapsLink, "_blank")}
+                    >
+                      📍 Ouvrir dans Maps
+                    </button>
+                  )}
 
-              {meet.imageUrl ? (
-                <img
-                  src={meet.imageUrl}
-                  alt="Lieu"
-                  style={{
-                    width: "100%",
-                    borderRadius: 16,
-                    border: "1px solid rgba(90,42,74,.10)",
-                    boxShadow: "0 12px 26px rgba(0,0,0,.08)",
-                  }}
-                />
+                  <div className="sep" />
+
+                  <div className="sectionTitle">
+                    <span>Vol</span>
+                    <span className="badge">✈️</span>
+                  </div>
+
+                  <div className="grid2">
+                    <div className="panel">
+                      <div className="panelTitle">Compagnie</div>
+                      <div className="panelBody">{meet.flight?.airline?.trim() || "—"}</div>
+                    </div>
+                    <div className="panel">
+                      <div className="panelTitle blue">N° vol</div>
+                      <div className="panelBody">{meet.flight?.flightNumber?.trim() || "—"}</div>
+                    </div>
+                  </div>
+
+                  <div className="grid2">
+                    <div className="panel">
+                      <div className="panelTitle">Départ</div>
+                      <div className="panelBody">
+                        {(meet.flight?.departureAirport?.trim() || "—") +
+                          (meet.flight?.departureTime?.trim() ? ` • ${meet.flight.departureTime.trim()}` : "")}
+                      </div>
+                    </div>
+                    <div className="panel">
+                      <div className="panelTitle blue">Arrivée</div>
+                      <div className="panelBody">
+                        {(meet.flight?.arrivalAirport?.trim() || "—") +
+                          (meet.flight?.arrivalTime?.trim() ? ` • ${meet.flight.arrivalTime.trim()}` : "")}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="panel" style={{ marginTop: 10 }}>
+                    <div className="panelTitle">Notes</div>
+                    <div className="panelBody">{meet.flight?.notes?.trim() || "—"}</div>
+                  </div>
+
+                  <button className="btn" style={{ marginTop: 14 }} onClick={() => setEditMeet(true)}>
+                    ✏️ Modifier
+                  </button>
+                </>
               ) : (
-                <div className="small">Colle un lien d’image (site, Google Photos, iCloud…)</div>
+                <>
+                  {/* FORMULAIRE */}
+                  <div className="label">Nom du lieu :</div>
+                  <input
+                    className="input"
+                    value={meet.placeName}
+                    onChange={(e) => patchShared({ meet: { ...meet, placeName: e.target.value } })}
+                    placeholder="Aéroport / Gare / Hôtel…"
+                  />
+
+                  <div className="label">Ville :</div>
+                  <input
+                    className="input"
+                    value={meet.city}
+                    onChange={(e) => patchShared({ meet: { ...meet, city: e.target.value } })}
+                    placeholder="Paris"
+                  />
+
+                  <div className="label">Adresse (optionnel) :</div>
+                  <input
+                    className="input"
+                    value={meet.address}
+                    onChange={(e) => patchShared({ meet: { ...meet, address: e.target.value } })}
+                    placeholder="Terminal, hall…"
+                  />
+
+                  <div className="sep" />
+
+                  <div className="label">Lien image (optionnel) :</div>
+                  <input
+                    className="input"
+                    value={meet.imageUrl}
+                    onChange={(e) => patchShared({ meet: { ...meet, imageUrl: e.target.value } })}
+                    placeholder="https://..."
+                  />
+
+                  <div className="sep" />
+
+                  <div className="sectionTitle">
+                    <span>Infos de vol</span>
+                    <span className="badge">✈️</span>
+                  </div>
+
+                  <div className="label">Compagnie :</div>
+                  <input
+                    className="input"
+                    value={meet.flight.airline}
+                    onChange={(e) => patchShared({ meet: { ...meet, flight: { ...meet.flight, airline: e.target.value } } })}
+                    placeholder="Air France"
+                  />
+
+                  <div className="label">Numéro de vol :</div>
+                  <input
+                    className="input"
+                    value={meet.flight.flightNumber}
+                    onChange={(e) =>
+                      patchShared({ meet: { ...meet, flight: { ...meet.flight, flightNumber: e.target.value } } })
+                    }
+                    placeholder="AF1234"
+                  />
+
+                  <div className="row">
+                    <div>
+                      <div className="label">Départ :</div>
+                      <input
+                        className="input"
+                        value={meet.flight.departureAirport}
+                        onChange={(e) =>
+                          patchShared({ meet: { ...meet, flight: { ...meet.flight, departureAirport: e.target.value } } })
+                        }
+                        placeholder="ORY"
+                      />
+                    </div>
+                    <div>
+                      <div className="label">Heure départ :</div>
+                      <input
+                        className="input"
+                        value={meet.flight.departureTime}
+                        onChange={(e) =>
+                          patchShared({ meet: { ...meet, flight: { ...meet.flight, departureTime: e.target.value } } })
+                        }
+                        placeholder="10:35"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="row">
+                    <div>
+                      <div className="label">Arrivée :</div>
+                      <input
+                        className="input"
+                        value={meet.flight.arrivalAirport}
+                        onChange={(e) =>
+                          patchShared({ meet: { ...meet, flight: { ...meet.flight, arrivalAirport: e.target.value } } })
+                        }
+                        placeholder="CDG"
+                      />
+                    </div>
+                    <div>
+                      <div className="label">Heure arrivée :</div>
+                      <input
+                        className="input"
+                        value={meet.flight.arrivalTime}
+                        onChange={(e) =>
+                          patchShared({ meet: { ...meet, flight: { ...meet.flight, arrivalTime: e.target.value } } })
+                        }
+                        placeholder="12:05"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="label">Notes (optionnel) :</div>
+                  <input
+                    className="input"
+                    value={meet.flight.notes}
+                    onChange={(e) => patchShared({ meet: { ...meet, flight: { ...meet.flight, notes: e.target.value } } })}
+                    placeholder="Terminal / porte / qui attend qui…"
+                  />
+
+                  <button className="btn" style={{ marginTop: 14 }} onClick={() => setEditMeet(false)}>
+                    ✅ Enregistrer
+                  </button>
+                </>
               )}
-
-              <div className="label">Lien image :</div>
-              <input
-                className="input"
-                value={meet.imageUrl}
-                onChange={(e) => patchShared({ meet: { ...meet, imageUrl: e.target.value } })}
-                placeholder="https://..."
-              />
-
-              <div className="sep" />
-
-              <div className="sectionTitle">
-                <span>Infos de vol</span>
-                <span className="badge">✈️</span>
-              </div>
-
-              <div className="label">Compagnie :</div>
-              <input
-                className="input"
-                value={meet.flight.airline}
-                onChange={(e) => patchShared({ meet: { ...meet, flight: { ...meet.flight, airline: e.target.value } } })}
-                placeholder="Air France"
-              />
-
-              <div className="label">Numéro de vol :</div>
-              <input
-                className="input"
-                value={meet.flight.flightNumber}
-                onChange={(e) =>
-                  patchShared({ meet: { ...meet, flight: { ...meet.flight, flightNumber: e.target.value } } })
-                }
-                placeholder="AF1234"
-              />
-
-              <div className="row">
-                <div>
-                  <div className="label">Départ :</div>
-                  <input
-                    className="input"
-                    value={meet.flight.departureAirport}
-                    onChange={(e) =>
-                      patchShared({ meet: { ...meet, flight: { ...meet.flight, departureAirport: e.target.value } } })
-                    }
-                    placeholder="ORY"
-                  />
-                </div>
-                <div>
-                  <div className="label">Heure départ :</div>
-                  <input
-                    className="input"
-                    value={meet.flight.departureTime}
-                    onChange={(e) =>
-                      patchShared({ meet: { ...meet, flight: { ...meet.flight, departureTime: e.target.value } } })
-                    }
-                    placeholder="10:35"
-                  />
-                </div>
-              </div>
-
-              <div className="row">
-                <div>
-                  <div className="label">Arrivée :</div>
-                  <input
-                    className="input"
-                    value={meet.flight.arrivalAirport}
-                    onChange={(e) =>
-                      patchShared({ meet: { ...meet, flight: { ...meet.flight, arrivalAirport: e.target.value } } })
-                    }
-                    placeholder="CDG"
-                  />
-                </div>
-                <div>
-                  <div className="label">Heure arrivée :</div>
-                  <input
-                    className="input"
-                    value={meet.flight.arrivalTime}
-                    onChange={(e) =>
-                      patchShared({ meet: { ...meet, flight: { ...meet.flight, arrivalTime: e.target.value } } })
-                    }
-                    placeholder="12:05"
-                  />
-                </div>
-              </div>
-
-              <div className="label">Référence (optionnel) :</div>
-              <input
-                className="input"
-                value={meet.flight.bookingRef}
-                onChange={(e) =>
-                  patchShared({ meet: { ...meet, flight: { ...meet.flight, bookingRef: e.target.value } } })
-                }
-                placeholder="ABC123"
-              />
-
-              <div className="label">Notes (optionnel) :</div>
-              <input
-                className="input"
-                value={meet.flight.notes}
-                onChange={(e) => patchShared({ meet: { ...meet, flight: { ...meet.flight, notes: e.target.value } } })}
-                placeholder="Terminal / porte / qui attend qui…"
-              />
 
               <div className="heart">🌸</div>
             </div>
@@ -740,8 +831,7 @@ export default function App() {
               </div>
 
               <div className="small">
-                Prochaine musique dans {pad2(untilMidnightParts.hours)}:{pad2(untilMidnightParts.minutes)}:
-                {pad2(untilMidnightParts.seconds)} 💖
+                Prochaine musique dans {pad2(untilMidnightParts.hours)}:{pad2(untilMidnightParts.minutes)}:{pad2(untilMidnightParts.seconds)} 💖
               </div>
 
               <div className="sep" />
