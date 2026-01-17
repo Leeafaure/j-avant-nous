@@ -1,19 +1,30 @@
-/* iPhone-like "perfect" */
+/* -------------------------------------------------------
+   iPhone-like "perfect" — POWER CSS (safe iOS)
+   - Bottom tabs fixed + safe-area
+   - No pointer-events hacks (clavier OK)
+   - Better lists, textarea, focus, spacing
+-------------------------------------------------------- */
+
 :root{
   --bg1:#ffd6e8;
   --bg2:#fff1f7;
   --text:#5a2a4a;
   --muted: rgba(90,42,74,.70);
+
   --card: rgba(255,255,255,.92);
   --stroke: rgba(90,42,74,.10);
+
   --shadow: 0 14px 40px rgba(0,0,0,.10);
   --shadowSoft: 0 10px 28px rgba(0,0,0,.08);
+
   --radius: 22px;
+  --radius2: 16px;
+
+  --tabH: 86px; /* hauteur visuelle de la tabbar */
 }
 
 *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 html, body, #root{ height:100%; }
-
 body{
   margin:0;
   font-family:-apple-system, BlinkMacSystemFont, "Poppins", system-ui, sans-serif;
@@ -25,8 +36,12 @@ body{
     linear-gradient(135deg, var(--bg1), var(--bg2));
 }
 
-a, button, input{ font:inherit; }
+/* Links / inputs inherit */
+a, button, input, textarea { font:inherit; color:inherit; }
+a{ color: rgba(140,60,110,.95); text-decoration: none; }
+a:active{ opacity:.75; }
 
+/* Layout */
 .app{
   min-height:100%;
   display:flex;
@@ -35,11 +50,14 @@ a, button, input{ font:inherit; }
 
 .shell{
   width:100%;
-  max-width:430px;            /* iPhone width vibe */
+  max-width:430px; /* iPhone vibe */
   padding: 22px 16px;
-  padding-bottom: max(18px, env(safe-area-inset-bottom));
+
+  /* IMPORTANT: réserve de place pour la tabbar fixe */
+  padding-bottom: calc(var(--tabH) + 22px + env(safe-area-inset-bottom));
 }
 
+/* Top */
 .topbar{
   display:flex;
   align-items:center;
@@ -67,8 +85,10 @@ a, button, input{ font:inherit; }
   box-shadow: 0 10px 24px rgba(0,0,0,.06);
   color: var(--muted);
   font-size:12px;
+  user-select:none;
 }
 
+/* Titles */
 .h1{
   font-size:26px;
   font-weight:900;
@@ -82,14 +102,17 @@ a, button, input{ font:inherit; }
   line-height:1.35;
 }
 
+/* Card */
 .card{
   background: var(--card);
   border: 1px solid var(--stroke);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 18px 16px;
+  backdrop-filter: blur(6px);
 }
 
+/* Sections */
 .sectionTitle{
   display:flex;
   align-items:center;
@@ -98,43 +121,64 @@ a, button, input{ font:inherit; }
   margin-bottom: 10px;
   color: var(--muted);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: .02em;
 }
 
 .label{
   font-size:15px;
-  margin: 8px 0 8px;
+  margin: 10px 0 8px;
   color: var(--muted);
+  font-weight: 700;
 }
 
-.input{
+/* Inputs */
+.input, .textarea{
   width:100%;
-  padding: 12px 12px;
-  font-size:17px;
+  font-size:16px;
   border-radius: 14px;
   border: 1px solid rgba(240,214,226,1);
   outline:none;
   background:#fff;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.7);
+  transition: box-shadow .15s ease, border-color .15s ease, transform .15s ease;
 }
 
-.input:focus{
+.input{
+  padding: 12px 12px;
+}
+
+.textarea{
+  padding: 12px 12px;
+  min-height: 92px;
+  resize: vertical;
+  line-height: 1.25;
+}
+
+.input:focus, .textarea:focus{
   border-color:#f3b6cf;
   box-shadow: 0 0 0 4px rgba(243,182,207,.35);
+}
+
+.input:active, .textarea:active{
+  transform: scale(0.999);
 }
 
 .result{
   margin-top: 14px;
   font-size: 20px;
   line-height: 1.25;
+  font-weight: 800;
 }
 
 .sub{
   margin-top: 6px;
   font-size: 14px;
   color: var(--muted);
+  line-height: 1.25;
 }
 
+/* Timer tiles */
 .timerRow{
   display:grid;
   grid-template-columns: repeat(3, 1fr);
@@ -145,7 +189,7 @@ a, button, input{ font:inherit; }
 .tile{
   background: rgba(255,255,255,.86);
   border: 1px solid var(--stroke);
-  border-radius: 16px;
+  border-radius: var(--radius2);
   padding: 10px 10px;
   box-shadow: var(--shadowSoft);
   text-align:center;
@@ -156,6 +200,7 @@ a, button, input{ font:inherit; }
   letter-spacing:.14em;
   text-transform:uppercase;
   color: var(--muted);
+  font-weight: 800;
 }
 
 .tileValue{
@@ -165,6 +210,7 @@ a, button, input{ font:inherit; }
   font-variant-numeric: tabular-nums;
 }
 
+/* Panels */
 .grid2{
   display:grid;
   grid-template-columns: 1fr 1fr;
@@ -175,7 +221,7 @@ a, button, input{ font:inherit; }
 .panel{
   background: rgba(255,247,251,1);
   border: 1px solid rgba(244,220,232,1);
-  border-radius: 16px;
+  border-radius: var(--radius2);
   padding: 12px;
 }
 
@@ -184,7 +230,7 @@ a, button, input{ font:inherit; }
   letter-spacing:.14em;
   text-transform:uppercase;
   color: rgba(209,88,141,.80);
-  font-weight: 800;
+  font-weight: 900;
 }
 
 .panelTitle.blue{ color: rgba(70,140,210,.75); }
@@ -192,11 +238,12 @@ a, button, input{ font:inherit; }
 .panelBody{
   margin-top: 6px;
   font-size: 15px;
-  font-weight: 650;
+  font-weight: 750;
   color: var(--text);
   line-height:1.25;
 }
 
+/* Buttons */
 .btn{
   margin-top: 12px;
   width:100%;
@@ -208,9 +255,11 @@ a, button, input{ font:inherit; }
   color: var(--text);
   background: linear-gradient(90deg, #ffc6dc, #d9efff);
   box-shadow: 0 14px 28px rgba(0,0,0,.10);
+  transition: transform .08s ease, filter .15s ease, opacity .15s ease;
 }
 
 .btn:active{ transform: scale(0.99); }
+.btn:hover{ filter: brightness(1.02); }
 .btn:disabled{ opacity: 0.55; }
 
 .heart{
@@ -226,7 +275,7 @@ a, button, input{ font:inherit; }
   text-align:center;
 }
 
-/* Modal iOS style */
+/* Modal iOS style (si tu l'utilises) */
 .backdrop{
   position: fixed;
   inset: 0;
@@ -235,6 +284,7 @@ a, button, input{ font:inherit; }
   align-items:center;
   justify-content:center;
   padding: 16px;
+  z-index: 9998;
 }
 
 .modal{
@@ -272,7 +322,7 @@ a, button, input{ font:inherit; }
   border: 1px solid var(--stroke);
   border-radius: 999px;
   padding: 8px 10px;
-  font-weight: 800;
+  font-weight: 900;
   color: var(--muted);
 }
 
@@ -282,23 +332,62 @@ a, button, input{ font:inherit; }
   gap:10px;
   margin-top: 12px;
 }
-/* Bottom tabs — FIX iPhone (ne bloque jamais les inputs) */
-.shell{
-  padding-bottom: calc(110px + env(safe-area-inset-bottom));
+
+/* Separators */
+.sep {
+  height: 1px;
+  background: rgba(90,42,74,.10);
+  margin: 12px 0;
 }
 
+/* Playlist list */
+.list{
+  display:flex;
+  flex-direction:column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.item{
+  background: rgba(255,255,255,.84);
+  border: 1px solid rgba(90,42,74,.10);
+  border-radius: var(--radius2);
+  padding: 12px 12px;
+  box-shadow: 0 10px 22px rgba(0,0,0,.06);
+}
+
+.itemTop{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap: 10px;
+}
+
+.itemTitle{
+  font-weight: 950;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  font-size: 14px;
+}
+
+.itemMeta{
+  font-size: 12px;
+  color: rgba(90,42,74,.55);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+/* Bottom tabs — FIX iPhone (ne bloque jamais les inputs) */
 .tabs{
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 9999;
-  pointer-events: none; /* le conteneur ne capte rien */
   padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
 }
 
 .tabbar{
-  pointer-events: auto; /* seuls les boutons captent les touch */
   width: 100%;
   max-width: 430px;
   margin: 0 auto;
@@ -307,10 +396,12 @@ a, button, input{ font:inherit; }
   grid-template-columns: 1fr 1fr 1fr;
   gap: 8px;
   padding: 10px;
+
   border-radius: 22px;
   background: rgba(255,255,255,.88);
   border: 1px solid var(--stroke);
   box-shadow: 0 14px 36px rgba(0,0,0,.10);
+  backdrop-filter: blur(10px);
 }
 
 .tabbtn{
@@ -319,13 +410,16 @@ a, button, input{ font:inherit; }
   border-radius: 16px;
   padding: 10px 8px;
   color: rgba(90,42,74,.75);
-  font-weight: 900;
+  font-weight: 950;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
   font-size: 12px;
+  transition: transform .08s ease, background .15s ease, box-shadow .15s ease;
 }
+
+.tabbtn:active{ transform: scale(0.98); }
 
 .tabbtnActive{
   background: linear-gradient(90deg, rgba(255,198,220,.75), rgba(217,239,255,.85));
@@ -333,51 +427,18 @@ a, button, input{ font:inherit; }
   box-shadow: 0 10px 22px rgba(0,0,0,.08);
 }
 
-.tabicon{ font-size: 18px; line-height: 1; }
-
-/* Le confetti ne doit jamais bloquer les taps */
-canvas { pointer-events: none !important; }
-
-
-.tabbar {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 8px;
-  padding: 10px;
-  border-radius: 22px;
-  background: rgba(255,255,255,.88);
-  border: 1px solid var(--stroke);
-  box-shadow: 0 14px 36px rgba(0,0,0,.10);
-}
-
-.tabbtn {
-  border: 0;
-  background: transparent;
-  border-radius: 16px;
-  padding: 10px 8px;
-  color: rgba(90,42,74,.75);
-  font-weight: 900;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-}
-
-.tabbtnActive {
-  background: linear-gradient(90deg, rgba(255,198,220,.75), rgba(217,239,255,.85));
-  color: var(--text);
-  box-shadow: 0 10px 22px rgba(0,0,0,.08);
-}
-
 .tabicon { font-size: 18px; line-height: 1; }
 
-.sep {
-  height: 1px;
-  background: rgba(90,42,74,.10);
-  margin: 12px 0;
+/* Confetti canvas should never block taps */
+canvas { pointer-events: none !important; }
+
+/* Better tap on iOS + smoother scroll */
+body{
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
 }
 
-
-
-
+@media (max-width: 380px){
+  .h1{ font-size: 24px; }
+  .shell{ padding-left: 14px; padding-right: 14px; }
+}
