@@ -22,7 +22,6 @@ export function defaultRoomState() {
       placeName: "Notre lieu de retrouvailles",
       city: "",
       address: "",
-      imageUrl: "",      // lien image (recommandé pour partager)
       imageDataUrl: "",  // on évite de sync (trop lourd)
       flight: {
         airline: "",
