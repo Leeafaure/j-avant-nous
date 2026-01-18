@@ -921,6 +921,7 @@ export default function App() {
         {/* TODO */}
         {tab === "todo" && (
           <>
+            {console.log("Rendering todo", shared.todo)}
             <div className="h1">Notre to-do list ✅💕</div>
             <p className="p">50 choses à faire ensemble — cochez quand c'est fait !</p>
 
