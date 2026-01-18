@@ -938,8 +938,10 @@ export default function App() {
                         type="checkbox"
                         checked={item.done}
                         onChange={() => {
+                          const newDone = !item.done;
+                          if (newDone) confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
                           const newTodo = [...shared.todo];
-                          newTodo[index] = { ...item, done: !item.done };
+                          newTodo[index] = { ...item, done: newDone };
                           patchShared({ todo: newTodo });
                         }}
                         style={{ marginRight: 10 }}
