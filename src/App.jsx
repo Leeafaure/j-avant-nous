@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import confetti from "canvas-confetti";
 import Calendar from 'react-calendar';
 
-import { db } from "./firebase";
+import { db, messaging } from "./firebase";
 import { doc, getDoc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
 import { defaultRoomState } from "./sync";
 
@@ -175,6 +175,28 @@ export default function App() {
     return () => unsub();
   }, [roomRef]);
 
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/firebase-messaging-sw.js')
+        .then((registration) => {
+          console.log('SW registered: ', registration);
+        })
+        .catch((error) => {
+          console.log('SW registration failed: ', error);
+        });
+    }
+
+    // Foreground messages
+    onMessage(messaging, (payload) => {
+      console.log('Message received: ', payload);
+      // Show notification
+      new Notification(payload.notification.title, {
+        body: payload.notification.body,
+        icon: '/vite.svg'
+      });
+    });
+  }, []);
+
   async function patchShared(patch) {
     setShared((prev) => ({ ...prev, ...patch, updatedAt: Date.now() }));
 
@@ -229,6 +251,23 @@ export default function App() {
   function removeMemory(index) {
     const newMemories = shared.memories.filter((_, i) => i !== index);
     patchShared({ memories: newMemories });
+  }
+
+  async function enableNotifications() {
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        const token = await getToken(messaging, { vapidKey: 'YOUR_VAPID_KEY_HERE' });
+        console.log('Token:', token);
+        alert('Notifications activées ! Token: ' + token);
+        // Store token in Firestore or send to server
+      } else {
+        alert('Permission refusée');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Erreur: ' + error.message);
+    }
   }
 
   // Date / countdown
@@ -493,6 +532,17 @@ export default function App() {
               disabled={!shared.daily}
             >
               👻📋 Partager le mini-défi dans Snapchat
+            </button>
+
+            <button
+              className="btn"
+              style={{
+                marginTop: 10,
+                background: "linear-gradient(90deg, #a8edea, #fed6e3)",
+              }}
+              onClick={enableNotifications}
+            >
+              🔔 Activer les notifications
             </button>
 
             <div className="small" style={{ marginTop: 6 }}>
