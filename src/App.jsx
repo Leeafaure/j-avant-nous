@@ -443,6 +443,25 @@ export default function App() {
                   <div className="panelBody">{shared.daily ? shared.daily.challenge : "Débloque ton mini-défi ✨"}</div>
                 </div>
               </div>
+              <button
+              className="btn"
+              style={{
+                marginTop: 10,
+                background: "linear-gradient(90deg, #fff59b, #ffe4f2)",
+              }}
+              onClick={() => {
+                // Ouvre Snapchat (si installé)
+                window.location.href = "snapchat://";
+              }}
+              disabled={!shared.daily}
+            >
+              👻 Ouvrir Snapchat pour envoyer le mini-défi
+            </button>
+
+            <div className="small" style={{ marginTop: 6 }}>
+              {shared.daily ? "Envoie le défi en snap 😈📸" : "Débloque d'abord le mini-défi ✨"}
+            </div>
+
 
               <button className="btn" onClick={unlockDaily} disabled={alreadyUnlockedToday}>
                 {alreadyUnlockedToday
