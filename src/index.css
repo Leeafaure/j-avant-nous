@@ -95,5 +95,5 @@ a{ color: rgba(140,60,110,.95); text-decoration:none; }
   color: rgba(90,42,74,.75); font-weight:950; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:12px;
 }
 .tabbtnActive{ background: linear-gradient(90deg, rgba(255,198,220,.75), rgba(217,239,255,.85)); color:var(--text); box-shadow: 0 10px 22px rgba(0,0,0,.08); }
-.tabicon{ font-size:18px; line-height:1; }
+.tabicon{ font-size:16px; line-height:1; }
 canvas{ pointer-events:none !important; }

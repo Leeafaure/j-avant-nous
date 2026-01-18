@@ -154,7 +154,7 @@ export default function App() {
             return;
           }
           suppressNextWrite.current = true;
-          setShared(snap.data());
+          setShared({ ...defaultRoomState(), ...snap.data() });
           setSyncing(false);
         } catch (e) {
           setSyncError(String(e?.message || e));
