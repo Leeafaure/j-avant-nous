@@ -273,10 +273,98 @@ export default function App() {
     patchShared({ customMovies: newCustomMovies });
   }
 
-  function removeCustomMovie(index) {
-    const newCustomMovies = shared.customMovies.filter((_, i) => i !== index);
-    patchShared({ customMovies: newCustomMovies });
+  function sendNotification(title, body, icon = '/vite.svg') {
+    if (Notification.permission === 'granted') {
+      new Notification(title, {
+        body: body,
+        icon: icon,
+        tag: 'j-avant-nous', // Pour éviter les doublons
+      });
+    }
   }
+
+  // Notifications automatiques basées sur les conditions
+  useEffect(() => {
+    if (!shared.daily || Notification.permission !== 'granted') return;
+
+    const now = new Date();
+    const today = todayKeyLocal(now);
+    const lastNotification = localStorage.getItem('lastDailyNotification');
+
+    // Rappel quotidien du défi (une fois par jour)
+    if (lastNotification !== today) {
+      setTimeout(() => {
+        sendNotification(
+          '💕 Rappel quotidien',
+          `N'oublie pas ton défi du jour : "${shared.daily.challenge}"`,
+          '/vite.svg'
+        );
+        localStorage.setItem('lastDailyNotification', today);
+      }, 2000); // 2 secondes après chargement
+    }
+  }, [shared.daily]);
+
+  // Notification quand l'autre coche quelque chose
+  useEffect(() => {
+    if (!shared.updatedAt || Notification.permission !== 'granted') return;
+
+    const lastUpdate = localStorage.getItem('lastUpdateNotification') || 0;
+    const currentUpdate = shared.updatedAt;
+
+    if (currentUpdate > lastUpdate + 5000) { // Au moins 5 secondes d'écart
+      setTimeout(() => {
+        if (shared.movies.some(m => m.done)) {
+          const doneCount = shared.movies.filter(m => m.done).length;
+          sendNotification(
+            '🎬 Progrès cinéma !',
+            `${doneCount} film(s) de coché(s) dans votre liste partagée !`,
+            '/vite.svg'
+          );
+        }
+
+        if (shared.customMovies && shared.customMovies.some(m => m.done)) {
+          const customDoneCount = shared.customMovies.filter(m => m.done).length;
+          sendNotification(
+            '❤️ Film personnalisé vu !',
+            `Un film de votre liste personnalisée a été coché !`,
+            '/vite.svg'
+          );
+        }
+
+        localStorage.setItem('lastUpdateNotification', currentUpdate.toString());
+      }, 1000);
+    }
+  }, [shared.updatedAt, shared.movies, shared.customMovies]);
+
+  // Notification de motivation selon le nombre de jours
+  useEffect(() => {
+    if (!targetDate || Notification.permission !== 'granted') return;
+
+    const daysLeft = Math.ceil((targetDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const lastMotivation = localStorage.getItem('lastMotivationNotification');
+
+    // Notifications de motivation aux jalons importants
+    const milestones = [100, 50, 30, 14, 7, 3, 1];
+    const currentMilestone = milestones.find(m => daysLeft <= m && daysLeft > 0);
+
+    if (currentMilestone && lastMotivation !== currentMilestone.toString()) {
+      setTimeout(() => {
+        let message = '';
+        if (daysLeft === 100) message = '100 jours ! Le compte à rebours commence... 💕';
+        else if (daysLeft === 50) message = 'La moitié du chemin ! On est les meilleurs ! 💪';
+        else if (daysLeft === 30) message = 'Plus que 30 jours ! La fin approche... 😍';
+        else if (daysLeft === 14) message = '2 semaines ! Prépare tes valises ! 🎒';
+        else if (daysLeft === 7) message = '1 semaine ! C\'est presque fini ! 🎉';
+        else if (daysLeft === 3) message = '3 jours ! Plus que quelques heures... ⏰';
+        else if (daysLeft === 1) message = 'Dernier jour ! Demain c\'est le grand jour ! 🌟';
+
+        if (message) {
+          sendNotification('⏰ Motivation !', message, '/vite.svg');
+          localStorage.setItem('lastMotivationNotification', currentMilestone.toString());
+        }
+      }, 3000);
+    }
+  }, [targetDate, now]);
 
   async function enableNotifications() {
     const isProduction = window.location.protocol === 'https:' && window.location.hostname !== 'localhost';
