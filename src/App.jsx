@@ -3,8 +3,6 @@ import confetti from "canvas-confetti";
 
 import { db } from "./firebase";
 import { doc, getDoc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
-import { messaging } from "./firebase";
-import { getToken, onMessage } from "firebase/messaging";
 import { defaultRoomState } from "./sync";
 
 const ROOM_ID = "gauthier-lea-2026-coeur"; // fixe = pas de code
@@ -122,9 +120,6 @@ export default function App() {
   const [tab, setTab] = useState("home"); // home | meet | playlist | todo | movies
   const [editMeet, setEditMeet] = useState(false);
   const [customMovieTitle, setCustomMovieTitle] = useState("");
-  const [notificationsRequested, setNotificationsRequested] = useState(() => 
-    localStorage.getItem('notificationsRequested') === 'true'
-  );
 
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -177,41 +172,7 @@ export default function App() {
     return () => unsub();
   }, [roomRef]);
 
-  useEffect(() => {
-    // Only register service worker in production (HTTPS) - works on Vercel
-    const isProduction = window.location.protocol === 'https:' && window.location.hostname !== 'localhost';
-    const isLocalhost = window.location.hostname === 'localhost';
 
-    if ('serviceWorker' in navigator) {
-      if (isProduction) {
-        console.log('🔥 Registering Firebase service worker (production)...');
-        navigator.serviceWorker.register('/firebase-messaging-sw.js')
-          .then((registration) => {
-            console.log('✅ Service worker registered successfully:', registration);
-          })
-          .catch((error) => {
-            console.error('❌ Service worker registration failed:', error);
-          });
-      } else if (isLocalhost) {
-        console.log('ℹ️ Service worker skipped in development (localhost) - notifications will work in foreground only');
-      } else {
-        console.log('ℹ️ Service worker registration conditions not met');
-      }
-    }
-
-    // Foreground messages work in both dev and prod
-    console.log('📱 Setting up foreground message handler...');
-    onMessage(messaging, (payload) => {
-      console.log('📨 Foreground message received:', payload);
-      // Show notification
-      if (Notification.permission === 'granted') {
-        new Notification(payload.notification.title, {
-          body: payload.notification.body,
-          icon: '/vite.svg'
-        });
-      }
-    });
-  }, []);
 
   async function patchShared(patch) {
     setShared((prev) => ({ ...prev, ...patch, updatedAt: Date.now() }));
@@ -273,164 +234,9 @@ export default function App() {
     patchShared({ customMovies: newCustomMovies });
   }
 
-  function sendNotification(title, body, icon = '/vite.svg') {
-    if (Notification.permission === 'granted') {
-      new Notification(title, {
-        body: body,
-        icon: icon,
-        tag: 'j-avant-nous', // Pour éviter les doublons
-      });
-    }
-  }
-
-  // Notifications automatiques basées sur les conditions
-  useEffect(() => {
-    if (!shared.daily || Notification.permission !== 'granted' || !shared.movies) return;
-
-    const checkDailyNotification = () => {
-      const now = new Date();
-      const today = todayKeyLocal(now);
-      const lastNotification = localStorage.getItem('lastDailyNotification');
-
-      // Rappel quotidien du défi (une fois par jour)
-      if (lastNotification !== today) {
-        sendNotification(
-          '💕 Rappel quotidien',
-          `N'oublie pas ton défi du jour : "${shared.daily.challenge}"`,
-          '/vite.svg'
-        );
-        localStorage.setItem('lastDailyNotification', today);
-      }
-    };
-
-    // Vérifier immédiatement
-    checkDailyNotification();
-
-    // Puis vérifier toutes les heures
-    const interval = setInterval(checkDailyNotification, 60 * 60 * 1000); // 1 heure
-
-    return () => clearInterval(interval);
-  }, [shared.daily, shared.movies]); // Garder les dépendances pour re-init si shared change
-
-  // Notification quand l'autre coche quelque chose
-  useEffect(() => {
-    if (!shared.updatedAt || Notification.permission !== 'granted' || !shared.movies) return;
-
-    const lastUpdate = localStorage.getItem('lastUpdateNotification') || 0;
-    const currentUpdate = shared.updatedAt;
-
-    if (currentUpdate > lastUpdate + 5000) { // Au moins 5 secondes d'écart
-      setTimeout(() => {
-        if (shared.movies && shared.movies.some(m => m.done)) {
-          const doneCount = shared.movies.filter(m => m.done).length;
-          sendNotification(
-            '🎬 Progrès cinéma !',
-            `${doneCount} film(s) de coché(s) dans votre liste partagée !`,
-            '/vite.svg'
-          );
-        }
-
-        if (shared.customMovies && shared.customMovies.some(m => m.done)) {
-          const customDoneCount = shared.customMovies.filter(m => m.done).length;
-          sendNotification(
-            '❤️ Film personnalisé vu !',
-            `Un film de votre liste personnalisée a été coché !`,
-            '/vite.svg'
-          );
-        }
-
-        localStorage.setItem('lastUpdateNotification', currentUpdate.toString());
-      }, 1000);
-    }
-  }, [shared.updatedAt, shared.movies, shared.customMovies]);
-
-  // Notification de motivation selon le nombre de jours
-  useEffect(() => {
-    if (!targetDate || Notification.permission !== 'granted') return;
-
-    const checkMotivationNotification = () => {
-      const daysLeft = Math.ceil((targetDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-      const lastMotivation = localStorage.getItem('lastMotivationNotification');
-
-      // Notifications de motivation aux jalons importants
-      const milestones = [100, 50, 30, 14, 7, 3, 1];
-      const currentMilestone = milestones.find(m => daysLeft <= m && daysLeft > 0);
-
-      if (currentMilestone && lastMotivation !== currentMilestone.toString()) {
-        let message = '';
-        if (daysLeft === 100) message = '100 jours ! Le compte à rebours commence... 💕';
-        else if (daysLeft === 50) message = 'La moitié du chemin ! On est les meilleurs ! 💪';
-        else if (daysLeft === 30) message = 'Plus que 30 jours ! La fin approche... 😍';
-        else if (daysLeft === 14) message = '2 semaines ! Prépare tes valises ! 🎒';
-        else if (daysLeft === 7) message = '1 semaine ! C\'est presque fini ! 🎉';
-        else if (daysLeft === 3) message = '3 jours ! Plus que quelques heures... ⏰';
-        else if (daysLeft === 1) message = 'Dernier jour ! Demain c\'est le grand jour ! 🌟';
-
-        if (message) {
-          sendNotification('⏰ Motivation !', message, '/vite.svg');
-          localStorage.setItem('lastMotivationNotification', currentMilestone.toString());
-        }
-      }
-    };
-
-    // Vérifier immédiatement
-    checkMotivationNotification();
-
-    // Puis vérifier toutes les 6 heures
-    const interval = setInterval(checkMotivationNotification, 6 * 60 * 60 * 1000); // 6 heures
-
-    return () => clearInterval(interval);
-  }, [targetDate]);
-
-  async function enableNotifications() {
-    const isProduction = window.location.protocol === 'https:' && window.location.hostname !== 'localhost';
-
-    try {
-      // Check if notifications are supported
-      if (!('Notification' in window)) {
-        alert('❌ Ce navigateur ne supporte pas les notifications');
-        return;
-      }
-
-      console.log('🔔 Requesting notification permission...');
-      const permission = await Notification.requestPermission();
-
-      if (permission === 'granted') {
-        console.log('✅ Permission granted, getting token...');
-        try {
-          const token = await getToken(messaging, {
-            vapidKey: 'BAIl1EofkEk5-F9vnYu6jRAhybdscwJoKYnK9CiAygSghhulhchH3M3wL_pG1cVQxAxzvb3dT2kAuQ8URgRrsFo'
-          });
-          console.log('🔑 FCM Token obtained:', token);
-
-          if (isProduction) {
-            alert('✅ Notifications push activées sur Vercel !\n\nVous recevrez maintenant des notifications même quand l\'app n\'est pas ouverte. 💕🎉');
-          } else {
-            alert('✅ Notifications activées en développement !\n\nEn production (Vercel), vous recevrez aussi des notifications push. 📱');
-          }
-
-          // Store token in Firestore or send to server
-          // TODO: Send token to your server for push notifications
-
-        } catch (tokenError) {
-          console.error('❌ Token error:', tokenError);
-          if (tokenError.code === 'messaging/failed-service-worker-registration') {
-            alert(`✅ Notifications activées !\n\n${isProduction ? 'Service worker enregistré sur Vercel.' : 'Service worker limité en développement - fonctionnalités complètes sur Vercel.'}`);
-          } else {
-            alert('⚠️ Erreur token : ' + tokenError.message + '\n\nLes notifications de base fonctionnent.');
-          }
-        }
-      } else {
-        alert('❌ Permission refusée\n\nVous pouvez réactiver les notifications dans les paramètres de votre navigateur.');
-      }
-    } catch (error) {
-      console.error('❌ Unexpected error:', error);
-      alert('❌ Erreur inattendue : ' + error.message);
-    } finally {
-      // Marquer que les notifications ont été demandées, peu importe le résultat
-      setNotificationsRequested(true);
-      localStorage.setItem('notificationsRequested', 'true');
-    }
+  function removeCustomMovie(index) {
+    const newCustomMovies = shared.customMovies.filter((_, i) => i !== index);
+    patchShared({ customMovies: newCustomMovies });
   }
 
   // Date / countdown
@@ -697,40 +503,6 @@ export default function App() {
             >
               👻📋 Partager le mini-défi dans Snapchat
             </button>
-
-            {!notificationsRequested && (
-              <button
-                className="btn"
-                style={{
-                  marginTop: 10,
-                  background: "linear-gradient(90deg, #a8edea, #fed6e3)",
-                  animation: "wiggle 2s infinite",
-                }}
-                onClick={enableNotifications}
-              >
-                🔔 Activer les notifications
-              </button>
-            )}
-
-            {/* Bouton de debug pour retester (visible seulement en développement) */}
-            {window.location.hostname === 'localhost' && notificationsRequested && (
-              <button
-                className="btn"
-                style={{
-                  marginTop: 10,
-                  background: "linear-gradient(90deg, #fbbf24, #f59e0b)",
-                  fontSize: '12px',
-                  padding: '8px 12px',
-                }}
-                onClick={() => {
-                  setNotificationsRequested(false);
-                  localStorage.removeItem('notificationsRequested');
-                  alert('🔄 Bouton notifications réinitialisé - vous pouvez maintenant le tester à nouveau !');
-                }}
-              >
-                🔄 Retester notifications (dev only)
-              </button>
-            )}
 
             <div className="small" style={{ marginTop: 6 }}>
               {shared.daily
