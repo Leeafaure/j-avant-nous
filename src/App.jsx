@@ -122,6 +122,9 @@ export default function App() {
   const [tab, setTab] = useState("home"); // home | meet | playlist | todo | movies
   const [editMeet, setEditMeet] = useState(false);
   const [customMovieTitle, setCustomMovieTitle] = useState("");
+  const [notificationsRequested, setNotificationsRequested] = useState(() => 
+    localStorage.getItem('notificationsRequested') === 'true'
+  );
 
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -275,6 +278,10 @@ export default function App() {
     } catch (error) {
       console.error('Error:', error);
       alert('Erreur: ' + error.message);
+    } finally {
+      // Marquer que les notifications ont été demandées, peu importe le résultat
+      setNotificationsRequested(true);
+      localStorage.setItem('notificationsRequested', 'true');
     }
   }
 
@@ -543,16 +550,19 @@ export default function App() {
               👻📋 Partager le mini-défi dans Snapchat
             </button>
 
-            <button
-              className="btn"
-              style={{
-                marginTop: 10,
-                background: "linear-gradient(90deg, #a8edea, #fed6e3)",
-              }}
-              onClick={enableNotifications}
-            >
-              🔔 Activer les notifications
-            </button>
+            {!notificationsRequested && (
+              <button
+                className="btn"
+                style={{
+                  marginTop: 10,
+                  background: "linear-gradient(90deg, #a8edea, #fed6e3)",
+                  animation: "wiggle 2s infinite",
+                }}
+                onClick={enableNotifications}
+              >
+                🔔 Activer les notifications
+              </button>
+            )}
 
             <div className="small" style={{ marginTop: 6 }}>
               {shared.daily
