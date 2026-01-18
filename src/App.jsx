@@ -285,7 +285,7 @@ export default function App() {
 
   // Notifications automatiques basées sur les conditions
   useEffect(() => {
-    if (!shared.daily || Notification.permission !== 'granted') return;
+    if (!shared.daily || Notification.permission !== 'granted' || !shared.movies) return;
 
     const now = new Date();
     const today = todayKeyLocal(now);
@@ -302,18 +302,18 @@ export default function App() {
         localStorage.setItem('lastDailyNotification', today);
       }, 2000); // 2 secondes après chargement
     }
-  }, [shared.daily]);
+  }, [shared.daily, shared.movies]); // Ajout de shared.movies pour éviter les erreurs
 
   // Notification quand l'autre coche quelque chose
   useEffect(() => {
-    if (!shared.updatedAt || Notification.permission !== 'granted') return;
+    if (!shared.updatedAt || Notification.permission !== 'granted' || !shared.movies) return;
 
     const lastUpdate = localStorage.getItem('lastUpdateNotification') || 0;
     const currentUpdate = shared.updatedAt;
 
     if (currentUpdate > lastUpdate + 5000) { // Au moins 5 secondes d'écart
       setTimeout(() => {
-        if (shared.movies.some(m => m.done)) {
+        if (shared.movies && shared.movies.some(m => m.done)) {
           const doneCount = shared.movies.filter(m => m.done).length;
           sendNotification(
             '🎬 Progrès cinéma !',
@@ -340,7 +340,7 @@ export default function App() {
   useEffect(() => {
     if (!targetDate || Notification.permission !== 'granted') return;
 
-    const daysLeft = Math.ceil((targetDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const daysLeft = Math.ceil((targetDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
     const lastMotivation = localStorage.getItem('lastMotivationNotification');
 
     // Notifications de motivation aux jalons importants
@@ -364,7 +364,7 @@ export default function App() {
         }
       }, 3000);
     }
-  }, [targetDate, now]);
+  }, [targetDate]); // Suppression de 'now' des dépendances pour éviter les re-renders constants
 
   async function enableNotifications() {
     const isProduction = window.location.protocol === 'https:' && window.location.hostname !== 'localhost';
