@@ -978,7 +978,7 @@ export default function App() {
             </button>
             <button className={`tabbtn ${tab === "todo" ? "tabbtnActive" : ""}`} onClick={() => setTab("todo")}>
               <div className="tabicon">✅</div>
-              Notre to-do
+              To-Do
             </button>
           </div>
         </div>
