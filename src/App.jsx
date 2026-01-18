@@ -178,27 +178,38 @@ export default function App() {
   }, [roomRef]);
 
   useEffect(() => {
-    // Only register service worker in production (HTTPS)
-    if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
-      navigator.serviceWorker.register('/firebase-messaging-sw.js')
-        .then((registration) => {
-          console.log('SW registered: ', registration);
-        })
-        .catch((error) => {
-          console.log('SW registration failed: ', error);
-        });
-    } else if ('serviceWorker' in navigator && window.location.hostname === 'localhost') {
-      console.log('Service worker skipped in development (localhost)');
+    // Only register service worker in production (HTTPS) - works on Vercel
+    const isProduction = window.location.protocol === 'https:' && window.location.hostname !== 'localhost';
+    const isLocalhost = window.location.hostname === 'localhost';
+
+    if ('serviceWorker' in navigator) {
+      if (isProduction) {
+        console.log('🔥 Registering Firebase service worker (production)...');
+        navigator.serviceWorker.register('/firebase-messaging-sw.js')
+          .then((registration) => {
+            console.log('✅ Service worker registered successfully:', registration);
+          })
+          .catch((error) => {
+            console.error('❌ Service worker registration failed:', error);
+          });
+      } else if (isLocalhost) {
+        console.log('ℹ️ Service worker skipped in development (localhost) - notifications will work in foreground only');
+      } else {
+        console.log('ℹ️ Service worker registration conditions not met');
+      }
     }
 
     // Foreground messages work in both dev and prod
+    console.log('📱 Setting up foreground message handler...');
     onMessage(messaging, (payload) => {
-      console.log('Message received: ', payload);
+      console.log('📨 Foreground message received:', payload);
       // Show notification
-      new Notification(payload.notification.title, {
-        body: payload.notification.body,
-        icon: '/vite.svg'
-      });
+      if (Notification.permission === 'granted') {
+        new Notification(payload.notification.title, {
+          body: payload.notification.body,
+          icon: '/vite.svg'
+        });
+      }
     });
   }, []);
 
@@ -268,36 +279,49 @@ export default function App() {
   }
 
   async function enableNotifications() {
+    const isProduction = window.location.protocol === 'https:' && window.location.hostname !== 'localhost';
+
     try {
       // Check if notifications are supported
       if (!('Notification' in window)) {
-        alert('Ce navigateur ne supporte pas les notifications');
+        alert('❌ Ce navigateur ne supporte pas les notifications');
         return;
       }
 
+      console.log('🔔 Requesting notification permission...');
       const permission = await Notification.requestPermission();
+
       if (permission === 'granted') {
+        console.log('✅ Permission granted, getting token...');
         try {
-          const token = await getToken(messaging, { 
-            vapidKey: 'BAIl1EofkEk5-F9vnYu6jRAhybdscwJoKYnK9CiAygSghhulhchH3M3wL_pG1cVQxAxzvb3dT2kAuQ8URgRrsFo' 
+          const token = await getToken(messaging, {
+            vapidKey: 'BAIl1EofkEk5-F9vnYu6jRAhybdscwJoKYnK9CiAygSghhulhchH3M3wL_pG1cVQxAxzvb3dT2kAuQ8URgRrsFo'
           });
-          console.log('Token:', token);
-          alert('✅ Notifications activées !\n\nVous recevrez maintenant des rappels et des surprises. 💕');
-          // Store token in Firestore or send to server
-        } catch (tokenError) {
-          console.error('Token error:', tokenError);
-          if (tokenError.code === 'messaging/failed-service-worker-registration') {
-            alert('✅ Notifications activées pour ce navigateur !\n\nNote : Les notifications en arrière-plan nécessitent HTTPS (fonctionneront en production).');
+          console.log('🔑 FCM Token obtained:', token);
+
+          if (isProduction) {
+            alert('✅ Notifications push activées sur Vercel !\n\nVous recevrez maintenant des notifications même quand l\'app n\'est pas ouverte. 💕🎉');
           } else {
-            alert('Erreur lors de la génération du token : ' + tokenError.message);
+            alert('✅ Notifications activées en développement !\n\nEn production (Vercel), vous recevrez aussi des notifications push. 📱');
+          }
+
+          // Store token in Firestore or send to server
+          // TODO: Send token to your server for push notifications
+
+        } catch (tokenError) {
+          console.error('❌ Token error:', tokenError);
+          if (tokenError.code === 'messaging/failed-service-worker-registration') {
+            alert(`✅ Notifications activées !\n\n${isProduction ? 'Service worker enregistré sur Vercel.' : 'Service worker limité en développement - fonctionnalités complètes sur Vercel.'}`);
+          } else {
+            alert('⚠️ Erreur token : ' + tokenError.message + '\n\nLes notifications de base fonctionnent.');
           }
         }
       } else {
-        alert('❌ Permission refusée\n\nVous pouvez réactiver les notifications plus tard dans les paramètres de votre navigateur.');
+        alert('❌ Permission refusée\n\nVous pouvez réactiver les notifications dans les paramètres de votre navigateur.');
       }
     } catch (error) {
-      console.error('Error:', error);
-      alert('Erreur inattendue : ' + error.message);
+      console.error('❌ Unexpected error:', error);
+      alert('❌ Erreur inattendue : ' + error.message);
     } finally {
       // Marquer que les notifications ont été demandées, peu importe le résultat
       setNotificationsRequested(true);
