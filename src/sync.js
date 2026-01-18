@@ -1,28 +1,14 @@
-// Helpers pour synchroniser un "room" (code couple) dans Firestore
-
-export function normalizeRoomCode(raw) {
-  return String(raw || "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "");
-}
-
-// Valeur par défaut de tout ce qu'on synchronise
 export function defaultRoomState() {
   return {
-    // date
     targetISO: "",
-
-    // daily (mot+défi) partagé
+    updatedAt: Date.now(),
     daily: null,
-
-    // lieu + vol
+    playlist: [],
     meet: {
-      placeName: "Notre lieu de retrouvailles",
+      placeName: "",
       city: "",
       address: "",
-      imageDataUrl: "",  // on évite de sync (trop lourd)
+      imageUrl: "",
       flight: {
         airline: "",
         flightNumber: "",
@@ -34,13 +20,6 @@ export function defaultRoomState() {
         notes: "",
       },
     },
-
-    // playlist DUO partagée
-    // [{dateKey, who, title, artist, link, note, addedAt}]
-    playlist: [],
-
-    // meta
-    updatedAt: Date.now(),
-    createdAt: Date.now(),
   };
 }
+
