@@ -119,6 +119,7 @@ function buildMapsLink({ city, placeName, address }) {
 export default function App() {
   const [tab, setTab] = useState("home"); // home | meet | playlist | todo | movies
   const [editMeet, setEditMeet] = useState(false);
+  const [customMovieTitle, setCustomMovieTitle] = useState("");
 
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -236,6 +237,26 @@ export default function App() {
     // 2) Ouvrir Snapchat
     // (sur iPhone si Snapchat est installé -> s'ouvre)
     window.location.href = "snapchat://";
+  }
+
+  function addCustomMovie() {
+    if (!customMovieTitle.trim()) return;
+    const newMovie = { title: customMovieTitle.trim(), done: false };
+    patchShared({ customMovies: [...shared.customMovies, newMovie] });
+    setCustomMovieTitle("");
+  }
+
+  function toggleCustomMovie(index) {
+    const newDone = !shared.customMovies[index].done;
+    if (newDone) confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+    const newCustomMovies = [...shared.customMovies];
+    newCustomMovies[index] = { ...newCustomMovies[index], done: newDone };
+    patchShared({ customMovies: newCustomMovies });
+  }
+
+  function removeCustomMovie(index) {
+    const newCustomMovies = shared.customMovies.filter((_, i) => i !== index);
+    patchShared({ customMovies: newCustomMovies });
   }
 
   // async function enableNotifications() {
@@ -1020,12 +1041,12 @@ export default function App() {
         {/* MOVIES */}
         {tab === "movies" && (
           <>
-            <div className="h1">🎥 50 films à voir ensemble</div>
+            <div className="h1">🎥 Films à voir ensemble</div>
             <p className="p">Les meilleurs films du cinéma — cochez quand vous les avez vus !</p>
 
             <div className="card">
               <div className="sectionTitle">
-                <span>Films à voir</span>
+                <span>Films suggérés</span>
                 <span className="badge">🍿</span>
               </div>
 
@@ -1054,8 +1075,72 @@ export default function App() {
               </div>
 
               <div className="small" style={{ marginTop: 20 }}>
-                {shared.movies.filter(m => m.done).length} / {shared.movies.length} films vus 💕
+                {shared.movies.filter(m => m.done).length} / {shared.movies.length} films suggérés vus 💕
               </div>
+
+              <div className="sep" />
+
+              <div className="sectionTitle">
+                <span>Ajouter un film personnalisé</span>
+                <span className="badge">➕</span>
+              </div>
+
+              <div className="row">
+                <div style={{ flex: 1 }}>
+                  <div className="label">Titre du film :</div>
+                  <input
+                    className="input"
+                    value={customMovieTitle}
+                    onChange={(e) => setCustomMovieTitle(e.target.value)}
+                    placeholder="Ex: La La Land"
+                    onKeyPress={(e) => e.key === 'Enter' && addCustomMovie()}
+                  />
+                </div>
+              </div>
+
+              <button className="btn" onClick={addCustomMovie} disabled={!customMovieTitle.trim()}>
+                Ajouter ce film ✨
+              </button>
+
+              {shared.customMovies.length > 0 && (
+                <>
+                  <div className="sep" />
+
+                  <div className="sectionTitle">
+                    <span>Vos films personnalisés</span>
+                    <span className="badge">❤️</span>
+                  </div>
+
+                  <div className="list">
+                    {shared.customMovies.map((movie, index) => (
+                      <div className="item" key={index}>
+                        <label style={{ display: "flex", alignItems: "center", cursor: "pointer", flex: 1 }}>
+                          <input
+                            type="checkbox"
+                            checked={movie.done}
+                            onChange={() => toggleCustomMovie(index)}
+                            style={{ marginRight: 10 }}
+                          />
+                          <span style={{ textDecoration: movie.done ? "line-through" : "none", opacity: movie.done ? 0.6 : 1, flex: 1 }}>
+                            {movie.title}
+                          </span>
+                        </label>
+                        <button
+                          className="btn"
+                          style={{ marginLeft: 10, padding: "8px 12px", fontSize: 12, background: "rgba(239,68,68,0.1)", color: "#ef4444" }}
+                          onClick={() => removeCustomMovie(index)}
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="small" style={{ marginTop: 20 }}>
+                    {shared.customMovies.filter(m => m.done).length} / {shared.customMovies.length} films personnalisés vus 💕
+                  </div>
+                </>
+              )}
 
               <div className="heart">🎬</div>
             </div>

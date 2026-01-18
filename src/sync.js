@@ -8,6 +8,9 @@ export function defaultRoomState() {
     // événements calendrier
     events: [],
 
+    // films personnalisés ajoutés par les utilisateurs
+    customMovies: [],
+
     // 50 films à voir ensemble - sélection mixte
     movies: [
       { title: "Le Roi Lion", done: false },
