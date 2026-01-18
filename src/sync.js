@@ -64,7 +64,7 @@ export function defaultRoomState() {
     ],
 
     // souvenirs partagés
-    memories: [],
+    // memories: [],
 
     // notre to-do list
     todo: [

@@ -117,12 +117,8 @@ function buildMapsLink({ city, placeName, address }) {
 }
 
 export default function App() {
-  const [tab, setTab] = useState("home"); // home | meet | playlist | todo | movies | memories
+  const [tab, setTab] = useState("home"); // home | meet | playlist | todo | movies
   const [editMeet, setEditMeet] = useState(false);
-  const [memoryTitle, setMemoryTitle] = useState("");
-  const [memoryDate, setMemoryDate] = useState("");
-  const [memoryDesc, setMemoryDesc] = useState("");
-  const [memoryPhotoUrl, setMemoryPhotoUrl] = useState("");
 
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -142,6 +138,7 @@ export default function App() {
   const suppressNextWrite = useRef(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSyncError("");
     setSyncing(true);
 
@@ -212,7 +209,9 @@ export default function App() {
         if (!snap.exists()) {
           await setDoc(roomRef, { ...defaultRoomState(), ...patch, updatedAt: Date.now() });
         }
-      } catch {}
+      } catch {
+        // Ignore errors in fallback setDoc
+      }
       setSyncError(String(e?.message || e));
     }
   }
@@ -237,20 +236,6 @@ export default function App() {
     // 2) Ouvrir Snapchat
     // (sur iPhone si Snapchat est installé -> s'ouvre)
     window.location.href = "snapchat://";
-  }
-
-  function addMemory() {
-    const newMemory = { title: memoryTitle, date: memoryDate, description: memoryDesc, photoUrl: memoryPhotoUrl };
-    patchShared({ memories: [...shared.memories, newMemory] });
-    setMemoryTitle("");
-    setMemoryDate("");
-    setMemoryDesc("");
-    setMemoryPhotoUrl("");
-  }
-
-  function removeMemory(index) {
-    const newMemories = shared.memories.filter((_, i) => i !== index);
-    patchShared({ memories: newMemories });
   }
 
   // async function enableNotifications() {
@@ -348,11 +333,12 @@ export default function App() {
   }, [meet]);
 
   useEffect(() => {
-    if (tab === "meet" && isMeetEmpty) setEditMeet(true);
-  }, [tab, isMeetEmpty]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (tab === "meet" && isMeetEmpty && !editMeet) setEditMeet(true);
+  }, [tab, isMeetEmpty, editMeet]);
 
   // Playlist duo
-  const playlist = shared.playlist || [];
+  const playlist = useMemo(() => shared.playlist || [], [shared.playlist]);
   const leaToday = useMemo(() => playlist.find((s) => s.dateKey === todayKey && s.who === "lea"), [playlist, todayKey]);
   const gauToday = useMemo(
     () => playlist.find((s) => s.dateKey === todayKey && s.who === "gauthier"),
@@ -1076,77 +1062,6 @@ export default function App() {
           </>
         )}
 
-        {/* MEMORIES */}
-        {tab === "memories" && (
-          <>
-            <div className="h1">Nos souvenirs 📸💕</div>
-            <p className="p">Partagez vos moments précieux ensemble.</p>
-
-            <div className="card">
-              <div className="sectionTitle">
-                <span>Ajouter un souvenir</span>
-                <span className="badge">➕</span>
-              </div>
-
-              <div className="row">
-                <div>
-                  <div className="label">Titre :</div>
-                  <input className="input" value={memoryTitle} onChange={(e) => setMemoryTitle(e.target.value)} placeholder="Un super moment" />
-                </div>
-                <div>
-                  <div className="label">Date :</div>
-                  <input className="input" type="date" value={memoryDate} onChange={(e) => setMemoryDate(e.target.value)} />
-                </div>
-              </div>
-
-              <div className="label">Description :</div>
-              <textarea className="textarea" value={memoryDesc} onChange={(e) => setMemoryDesc(e.target.value)} placeholder="Raconte ce moment..." />
-
-              <div className="label">Photo (URL optionnel) :</div>
-              <input className="input" value={memoryPhotoUrl} onChange={(e) => setMemoryPhotoUrl(e.target.value)} placeholder="https://..." />
-
-              <button className="btn" onClick={addMemory} disabled={!memoryTitle.trim() || !memoryDate}>
-                Ajouter le souvenir ✨
-              </button>
-
-              <div className="sep" />
-
-              <div className="sectionTitle">
-                <span>Souvenirs</span>
-                <span className="badge">🗂️</span>
-              </div>
-
-              {shared.memories.length === 0 ? (
-                <div className="small">Aucun souvenir encore… ajoutez-en un ! 🥰</div>
-              ) : (
-                <div className="list">
-                  {shared.memories.map((memory, index) => (
-                    <div className="item" key={index}>
-                      <div className="itemTop">
-                        <div className="itemTitle">{memory.title}</div>
-                        <div className="itemMeta">{memory.date}</div>
-                      </div>
-                      {memory.photoUrl && (
-                        <img src={memory.photoUrl} alt={memory.title} style={{ width: '100%', borderRadius: '8px', marginTop: '10px' }} />
-                      )}
-                      <div className="sub">{memory.description}</div>
-                      <button
-                        className="btn"
-                        style={{ marginTop: 10, padding: "10px 12px", fontSize: 14 }}
-                        onClick={() => removeMemory(index)}
-                      >
-                        Supprimer
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="heart">🌸</div>
-            </div>
-          </>
-        )}
-
         {/* Tabs */}
         <div className="tabs">
           <div className="tabbar">
@@ -1169,10 +1084,6 @@ export default function App() {
             <button className={`tabbtn ${tab === "movies" ? "tabbtnActive" : ""}`} onClick={() => setTab("movies")}>
               <div className="tabicon">🎥</div>
               Films
-            </button>
-            <button className={`tabbtn ${tab === "memories" ? "tabbtnActive" : ""}`} onClick={() => setTab("memories")}>
-              <div className="tabicon">📸</div>
-              Souvenirs
             </button>
           </div>
         </div>
