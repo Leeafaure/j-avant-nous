@@ -8,6 +8,9 @@ export function defaultRoomState() {
     // événements calendrier
     events: [],
 
+    // souvenirs partagés
+    memories: [],
+
     // notre to-do list
     todo: [
       { text: "Se faire un câlin de 5 minutes sans rien dire", done: false },
