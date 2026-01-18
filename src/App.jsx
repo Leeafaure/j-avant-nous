@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import confetti from "canvas-confetti";
+import Calendar from 'react-calendar';
 
 import { db } from "./firebase";
 import { doc, getDoc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
@@ -117,8 +118,9 @@ function buildMapsLink({ city, placeName, address }) {
 }
 
 export default function App() {
-  const [tab, setTab] = useState("home"); // home | meet | playlist | todo
+  const [tab, setTab] = useState("home"); // home | meet | playlist | todo | calendar
   const [editMeet, setEditMeet] = useState(false);
+  const [date, setDate] = useState(new Date());
 
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -963,6 +965,39 @@ export default function App() {
           </>
         )}
 
+        {/* CALENDAR */}
+        {tab === "calendar" && (
+          <>
+            <div className="h1">Calendrier partagé 📅💕</div>
+            <p className="p">Marquez vos dates spéciales et événements.</p>
+
+            <div className="card">
+              <div className="sectionTitle">
+                <span>Événements</span>
+                <span className="badge">🎯</span>
+              </div>
+
+              <Calendar
+                onChange={setDate}
+                value={date}
+                tileContent={({ date, view }) => {
+                  if (view === 'month') {
+                    const dateStr = date.toISOString().split('T')[0];
+                    const eventsOnDate = shared.events.filter(e => e.date === dateStr);
+                    return eventsOnDate.length > 0 ? <div style={{ fontSize: '12px', color: 'red' }}>•</div> : null;
+                  }
+                }}
+              />
+
+              <div className="small" style={{ marginTop: 20 }}>
+                Cliquez sur une date pour ajouter un événement.
+              </div>
+
+              <div className="heart">🌸</div>
+            </div>
+          </>
+        )}
+
         {/* Tabs */}
         <div className="tabs">
           <div className="tabbar">
@@ -981,6 +1016,10 @@ export default function App() {
             <button className={`tabbtn ${tab === "todo" ? "tabbtnActive" : ""}`} onClick={() => setTab("todo")}>
               <div className="tabicon">✅</div>
               To-Do
+            </button>
+            <button className={`tabbtn ${tab === "calendar" ? "tabbtnActive" : ""}`} onClick={() => setTab("calendar")}>
+              <div className="tabicon">📅</div>
+              Calendrier
             </button>
           </div>
         </div>
