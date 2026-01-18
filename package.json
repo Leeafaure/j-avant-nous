@@ -13,7 +13,6 @@
     "canvas-confetti": "^1.9.4",
     "firebase": "^12.8.0",
     "react": "^19.2.0",
-    "react-calendar": "^6.0.0",
     "react-dom": "^19.2.0"
   },
   "devDependencies": {

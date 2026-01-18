@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import confetti from "canvas-confetti";
-import Calendar from 'react-calendar';
 
 import { db } from "./firebase";
 import { doc, getDoc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
@@ -118,12 +117,12 @@ function buildMapsLink({ city, placeName, address }) {
 }
 
 export default function App() {
-  const [tab, setTab] = useState("home"); // home | meet | playlist | todo | calendar | memories
+  const [tab, setTab] = useState("home"); // home | meet | playlist | todo | movies | memories
   const [editMeet, setEditMeet] = useState(false);
-  const [date, setDate] = useState(new Date());
   const [memoryTitle, setMemoryTitle] = useState("");
   const [memoryDate, setMemoryDate] = useState("");
   const [memoryDesc, setMemoryDesc] = useState("");
+  const [memoryPhotoUrl, setMemoryPhotoUrl] = useState("");
 
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -241,11 +240,12 @@ export default function App() {
   }
 
   function addMemory() {
-    const newMemory = { title: memoryTitle, date: memoryDate, description: memoryDesc };
+    const newMemory = { title: memoryTitle, date: memoryDate, description: memoryDesc, photoUrl: memoryPhotoUrl };
     patchShared({ memories: [...shared.memories, newMemory] });
     setMemoryTitle("");
     setMemoryDate("");
     setMemoryDesc("");
+    setMemoryPhotoUrl("");
   }
 
   function removeMemory(index) {
@@ -1031,35 +1031,47 @@ export default function App() {
           </>
         )}
 
-        {/* CALENDAR */}
-        {tab === "calendar" && (
+        {/* MOVIES */}
+        {tab === "movies" && (
           <>
-            <div className="h1">Calendrier partagé 📅💕</div>
-            <p className="p">Marquez vos dates spéciales et événements.</p>
+            <div className="h1">🎥 50 films à voir ensemble</div>
+            <p className="p">Les meilleurs films du cinéma — cochez quand vous les avez vus !</p>
 
             <div className="card">
               <div className="sectionTitle">
-                <span>Événements</span>
-                <span className="badge">🎯</span>
+                <span>Films à voir</span>
+                <span className="badge">🍿</span>
               </div>
 
-              <Calendar
-                onChange={setDate}
-                value={date}
-                tileContent={({ date, view }) => {
-                  if (view === 'month') {
-                    const dateStr = date.toISOString().split('T')[0];
-                    const eventsOnDate = shared.events.filter(e => e.date === dateStr);
-                    return eventsOnDate.length > 0 ? <div style={{ fontSize: '12px', color: 'red' }}>•</div> : null;
-                  }
-                }}
-              />
+              <div className="list">
+                {shared.movies.map((movie, index) => (
+                  <div className="item" key={index}>
+                    <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+                      <input
+                        type="checkbox"
+                        checked={movie.done}
+                        onChange={() => {
+                          const newDone = !movie.done;
+                          if (newDone) confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+                          const newMovies = [...shared.movies];
+                          newMovies[index] = { ...movie, done: newDone };
+                          patchShared({ movies: newMovies });
+                        }}
+                        style={{ marginRight: 10 }}
+                      />
+                      <span style={{ textDecoration: movie.done ? "line-through" : "none", opacity: movie.done ? 0.6 : 1 }}>
+                        {movie.title}
+                      </span>
+                    </label>
+                  </div>
+                ))}
+              </div>
 
               <div className="small" style={{ marginTop: 20 }}>
-                Cliquez sur une date pour ajouter un événement.
+                {shared.movies.filter(m => m.done).length} / {shared.movies.length} films vus 💕
               </div>
 
-              <div className="heart">🌸</div>
+              <div className="heart">🎬</div>
             </div>
           </>
         )}
@@ -1090,6 +1102,9 @@ export default function App() {
               <div className="label">Description :</div>
               <textarea className="textarea" value={memoryDesc} onChange={(e) => setMemoryDesc(e.target.value)} placeholder="Raconte ce moment..." />
 
+              <div className="label">Photo (URL optionnel) :</div>
+              <input className="input" value={memoryPhotoUrl} onChange={(e) => setMemoryPhotoUrl(e.target.value)} placeholder="https://..." />
+
               <button className="btn" onClick={addMemory} disabled={!memoryTitle.trim() || !memoryDate}>
                 Ajouter le souvenir ✨
               </button>
@@ -1111,6 +1126,9 @@ export default function App() {
                         <div className="itemTitle">{memory.title}</div>
                         <div className="itemMeta">{memory.date}</div>
                       </div>
+                      {memory.photoUrl && (
+                        <img src={memory.photoUrl} alt={memory.title} style={{ width: '100%', borderRadius: '8px', marginTop: '10px' }} />
+                      )}
                       <div className="sub">{memory.description}</div>
                       <button
                         className="btn"
@@ -1148,9 +1166,9 @@ export default function App() {
               <div className="tabicon">✅</div>
               To-Do
             </button>
-            <button className={`tabbtn ${tab === "calendar" ? "tabbtnActive" : ""}`} onClick={() => setTab("calendar")}>
-              <div className="tabicon">📅</div>
-              Calendrier
+            <button className={`tabbtn ${tab === "movies" ? "tabbtnActive" : ""}`} onClick={() => setTab("movies")}>
+              <div className="tabicon">🎥</div>
+              Films
             </button>
             <button className={`tabbtn ${tab === "memories" ? "tabbtnActive" : ""}`} onClick={() => setTab("memories")}>
               <div className="tabicon">📸</div>
