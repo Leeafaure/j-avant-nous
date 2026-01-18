@@ -696,6 +696,26 @@ export default function App() {
               </button>
             )}
 
+            {/* Bouton de debug pour retester (visible seulement en développement) */}
+            {window.location.hostname === 'localhost' && notificationsRequested && (
+              <button
+                className="btn"
+                style={{
+                  marginTop: 10,
+                  background: "linear-gradient(90deg, #fbbf24, #f59e0b)",
+                  fontSize: '12px',
+                  padding: '8px 12px',
+                }}
+                onClick={() => {
+                  setNotificationsRequested(false);
+                  localStorage.removeItem('notificationsRequested');
+                  alert('🔄 Bouton notifications réinitialisé - vous pouvez maintenant le tester à nouveau !');
+                }}
+              >
+                🔄 Retester notifications (dev only)
+              </button>
+            )}
+
             <div className="small" style={{ marginTop: 6 }}>
               {shared.daily
                 ? "Le défi est copié → il te reste à coller dans Snapchat 😈📸"
