@@ -287,22 +287,30 @@ export default function App() {
   useEffect(() => {
     if (!shared.daily || Notification.permission !== 'granted' || !shared.movies) return;
 
-    const now = new Date();
-    const today = todayKeyLocal(now);
-    const lastNotification = localStorage.getItem('lastDailyNotification');
+    const checkDailyNotification = () => {
+      const now = new Date();
+      const today = todayKeyLocal(now);
+      const lastNotification = localStorage.getItem('lastDailyNotification');
 
-    // Rappel quotidien du défi (une fois par jour)
-    if (lastNotification !== today) {
-      setTimeout(() => {
+      // Rappel quotidien du défi (une fois par jour)
+      if (lastNotification !== today) {
         sendNotification(
           '💕 Rappel quotidien',
           `N'oublie pas ton défi du jour : "${shared.daily.challenge}"`,
           '/vite.svg'
         );
         localStorage.setItem('lastDailyNotification', today);
-      }, 2000); // 2 secondes après chargement
-    }
-  }, [shared.daily, shared.movies]); // Ajout de shared.movies pour éviter les erreurs
+      }
+    };
+
+    // Vérifier immédiatement
+    checkDailyNotification();
+
+    // Puis vérifier toutes les heures
+    const interval = setInterval(checkDailyNotification, 60 * 60 * 1000); // 1 heure
+
+    return () => clearInterval(interval);
+  }, [shared.daily, shared.movies]); // Garder les dépendances pour re-init si shared change
 
   // Notification quand l'autre coche quelque chose
   useEffect(() => {
@@ -340,15 +348,15 @@ export default function App() {
   useEffect(() => {
     if (!targetDate || Notification.permission !== 'granted') return;
 
-    const daysLeft = Math.ceil((targetDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-    const lastMotivation = localStorage.getItem('lastMotivationNotification');
+    const checkMotivationNotification = () => {
+      const daysLeft = Math.ceil((targetDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      const lastMotivation = localStorage.getItem('lastMotivationNotification');
 
-    // Notifications de motivation aux jalons importants
-    const milestones = [100, 50, 30, 14, 7, 3, 1];
-    const currentMilestone = milestones.find(m => daysLeft <= m && daysLeft > 0);
+      // Notifications de motivation aux jalons importants
+      const milestones = [100, 50, 30, 14, 7, 3, 1];
+      const currentMilestone = milestones.find(m => daysLeft <= m && daysLeft > 0);
 
-    if (currentMilestone && lastMotivation !== currentMilestone.toString()) {
-      setTimeout(() => {
+      if (currentMilestone && lastMotivation !== currentMilestone.toString()) {
         let message = '';
         if (daysLeft === 100) message = '100 jours ! Le compte à rebours commence... 💕';
         else if (daysLeft === 50) message = 'La moitié du chemin ! On est les meilleurs ! 💪';
@@ -362,9 +370,17 @@ export default function App() {
           sendNotification('⏰ Motivation !', message, '/vite.svg');
           localStorage.setItem('lastMotivationNotification', currentMilestone.toString());
         }
-      }, 3000);
-    }
-  }, [targetDate]); // Suppression de 'now' des dépendances pour éviter les re-renders constants
+      }
+    };
+
+    // Vérifier immédiatement
+    checkMotivationNotification();
+
+    // Puis vérifier toutes les 6 heures
+    const interval = setInterval(checkMotivationNotification, 6 * 60 * 60 * 1000); // 6 heures
+
+    return () => clearInterval(interval);
+  }, [targetDate]);
 
   async function enableNotifications() {
     const isProduction = window.location.protocol === 'https:' && window.location.hostname !== 'localhost';
