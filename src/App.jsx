@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import confetti from "canvas-confetti";
 import Calendar from 'react-calendar';
 
-import { db } from "./firebase";
+import { db, messaging } from "./firebase";
 import { doc, getDoc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
 import { defaultRoomState } from "./sync";
 
@@ -175,27 +175,27 @@ export default function App() {
     return () => unsub();
   }, [roomRef]);
 
-  // useEffect(() => {
-  //   if ('serviceWorker' in navigator) {
-  //     navigator.serviceWorker.register('/firebase-messaging-sw.js')
-  //       .then((registration) => {
-  //         console.log('SW registered: ', registration);
-  //       })
-  //       .catch((error) => {
-  //         console.log('SW registration failed: ', error);
-  //       });
-  //   }
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/firebase-messaging-sw.js')
+        .then((registration) => {
+          console.log('SW registered: ', registration);
+        })
+        .catch((error) => {
+          console.log('SW registration failed: ', error);
+        });
+    }
 
-  //   // Foreground messages
-  //   onMessage(messaging, (payload) => {
-  //     console.log('Message received: ', payload);
-  //     // Show notification
-  //     new Notification(payload.notification.title, {
-  //       body: payload.notification.body,
-  //       icon: '/vite.svg'
-  //     });
-  //   });
-  // }, []);
+    // Foreground messages
+    onMessage(messaging, (payload) => {
+      console.log('Message received: ', payload);
+      // Show notification
+      new Notification(payload.notification.title, {
+        body: payload.notification.body,
+        icon: '/vite.svg'
+      });
+    });
+  }, []);
 
   async function patchShared(patch) {
     setShared((prev) => ({ ...prev, ...patch, updatedAt: Date.now() }));
@@ -253,22 +253,22 @@ export default function App() {
     patchShared({ memories: newMemories });
   }
 
-  // async function enableNotifications() {
-  //   try {
-  //     const permission = await Notification.requestPermission();
-  //     if (permission === 'granted') {
-  //       const token = await getToken(messaging, { vapidKey: 'BAIl1EofkEk5-F9vnYu6jRAhybdscwJoKYnK9CiAygSghhulhchH3M3wL_pG1cVQxAxzvb3dT2kAuQ8URgRrsFo' });
-  //       console.log('Token:', token);
-  //       alert('Notifications activées ! Token: ' + token);
-  //       // Store token in Firestore or send to server
-  //     } else {
-  //       alert('Permission refusée');
-  //     }
-  //   } catch (error) {
-  //     console.error('Error:', error);
-  //     alert('Erreur: ' + error.message);
-  //   }
-  // }
+  async function enableNotifications() {
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        const token = await getToken(messaging, { vapidKey: 'BAIl1EofkEk5-F9vnYu6jRAhybdscwJoKYnK9CiAygSghhulhchH3M3wL_pG1cVQxAxzvb3dT2kAuQ8URgRrsFo' });
+        console.log('Token:', token);
+        alert('Notifications activées ! Token: ' + token);
+        // Store token in Firestore or send to server
+      } else {
+        alert('Permission refusée');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Erreur: ' + error.message);
+    }
+  }
 
   // Date / countdown
   const targetDate = useMemo(() => (shared.targetISO ? new Date(shared.targetISO) : null), [shared.targetISO]);
@@ -534,7 +534,7 @@ export default function App() {
               👻📋 Partager le mini-défi dans Snapchat
             </button>
 
-            {/* <button
+            <button
               className="btn"
               style={{
                 marginTop: 10,
@@ -543,7 +543,7 @@ export default function App() {
               onClick={enableNotifications}
             >
               🔔 Activer les notifications
-            </button> */}
+            </button>
 
             <div className="small" style={{ marginTop: 6 }}>
               {shared.daily
