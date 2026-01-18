@@ -117,7 +117,7 @@ function buildMapsLink({ city, placeName, address }) {
 }
 
 export default function App() {
-  const [tab, setTab] = useState("home"); // home | meet | playlist
+  const [tab, setTab] = useState("home"); // home | meet | playlist | todo
   const [editMeet, setEditMeet] = useState(false);
 
   const [now, setNow] = useState(() => new Date());
@@ -918,6 +918,49 @@ export default function App() {
           </>
         )}
 
+        {/* TODO */}
+        {tab === "todo" && (
+          <>
+            <div className="h1">Notre to-do list ✅💕</div>
+            <p className="p">50 choses à faire ensemble — cochez quand c'est fait !</p>
+
+            <div className="card">
+              <div className="sectionTitle">
+                <span>Activités à faire</span>
+                <span className="badge">🎯</span>
+              </div>
+
+              <div className="list">
+                {shared.todo.map((item, index) => (
+                  <div className="item" key={index}>
+                    <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+                      <input
+                        type="checkbox"
+                        checked={item.done}
+                        onChange={() => {
+                          const newTodo = [...shared.todo];
+                          newTodo[index] = { ...item, done: !item.done };
+                          patchShared({ todo: newTodo });
+                        }}
+                        style={{ marginRight: 10 }}
+                      />
+                      <span style={{ textDecoration: item.done ? "line-through" : "none", opacity: item.done ? 0.6 : 1 }}>
+                        {item.text}
+                      </span>
+                    </label>
+                  </div>
+                ))}
+              </div>
+
+              <div className="small" style={{ marginTop: 20 }}>
+                {shared.todo.filter(t => t.done).length} / {shared.todo.length} activités complétées 💖
+              </div>
+
+              <div className="heart">🌸</div>
+            </div>
+          </>
+        )}
+
         {/* Tabs */}
         <div className="tabs">
           <div className="tabbar">
@@ -932,6 +975,10 @@ export default function App() {
             <button className={`tabbtn ${tab === "playlist" ? "tabbtnActive" : ""}`} onClick={() => setTab("playlist")}>
               <div className="tabicon">🎧</div>
               Playlist
+            </button>
+            <button className={`tabbtn ${tab === "todo" ? "tabbtnActive" : ""}`} onClick={() => setTab("todo")}>
+              <div className="tabicon">✅</div>
+              Notre to-do
             </button>
           </div>
         </div>
