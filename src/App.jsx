@@ -191,6 +191,28 @@ export default function App() {
     }
   }
 
+  async function shareToSnapchat() {
+    if (!shared.daily?.challenge) return;
+
+    const text = `Mini-défi du jour 😈✨\n\n${shared.daily.challenge}\n\n💖 signé : nous`;
+
+    // 1) Copier
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        // fallback ancien iOS
+        window.prompt("Copie ce texte :", text);
+      }
+    } catch {
+      window.prompt("Copie ce texte :", text);
+    }
+
+    // 2) Ouvrir Snapchat
+    // (sur iPhone si Snapchat est installé -> s'ouvre)
+    window.location.href = "snapchat://";
+  }
+
   // Date / countdown
   const targetDate = useMemo(() => (shared.targetISO ? new Date(shared.targetISO) : null), [shared.targetISO]);
   const remainingMs = useMemo(() => (targetDate ? targetDate.getTime() - now.getTime() : 0), [targetDate, now]);
@@ -449,19 +471,17 @@ export default function App() {
                 marginTop: 10,
                 background: "linear-gradient(90deg, #fff59b, #ffe4f2)",
               }}
-              onClick={() => {
-                // Ouvre Snapchat (si installé)
-                window.location.href = "snapchat://";
-              }}
+              onClick={shareToSnapchat}
               disabled={!shared.daily}
             >
-              👻 Ouvrir Snapchat pour envoyer le mini-défi
+              👻📋 Partager le mini-défi dans Snapchat
             </button>
 
             <div className="small" style={{ marginTop: 6 }}>
-              {shared.daily ? "Envoie le défi en snap 😈📸" : "Débloque d'abord le mini-défi ✨"}
+              {shared.daily
+                ? "Le défi est copié → il te reste à coller dans Snapchat 😈📸"
+                : "Débloque d’abord le mini-défi ✨"}
             </div>
-
 
               <button className="btn" onClick={unlockDaily} disabled={alreadyUnlockedToday}>
                 {alreadyUnlockedToday
