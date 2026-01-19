@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import confetti from "canvas-confetti";
 
 import { db } from "./firebase";
-import { doc, getDoc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, runTransaction, setDoc, updateDoc } from "firebase/firestore";
 import { defaultRoomState } from "./sync";
 
 const ROOM_ID = "gauthier-lea-2026-coeur"; // fixe = pas de code
@@ -189,6 +189,20 @@ export default function App() {
     }
   }
 
+  async function updateRoomTransaction(updateFromBase) {
+    try {
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(roomRef);
+        const base = snap.exists() ? { ...defaultRoomState(), ...snap.data() } : defaultRoomState();
+        const patch = updateFromBase(base);
+        if (!patch) return;
+        tx.set(roomRef, { ...base, ...patch, updatedAt: Date.now() });
+      });
+    } catch (e) {
+      setSyncError(String(e?.message || e));
+    }
+  }
+
   async function shareToSnapchat() {
     if (!shared.daily?.challenge) return;
 
@@ -214,7 +228,11 @@ export default function App() {
   function addCustomMovie() {
     if (!customMovieTitle.trim()) return;
     const newMovie = { title: customMovieTitle.trim(), done: false };
-    patchShared({ customMovies: [...shared.customMovies, newMovie] });
+    const next = [...shared.customMovies, newMovie];
+    setShared((prev) => ({ ...prev, customMovies: next, updatedAt: Date.now() }));
+    updateRoomTransaction((base) => ({
+      customMovies: [...(base.customMovies || []), newMovie],
+    }));
     setCustomMovieTitle("");
   }
 
@@ -223,12 +241,21 @@ export default function App() {
     if (newDone) confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
     const newCustomMovies = [...shared.customMovies];
     newCustomMovies[index] = { ...newCustomMovies[index], done: newDone };
-    patchShared({ customMovies: newCustomMovies });
+    setShared((prev) => ({ ...prev, customMovies: newCustomMovies, updatedAt: Date.now() }));
+    updateRoomTransaction((base) => {
+      const baseMovies = [...(base.customMovies || [])];
+      if (!baseMovies[index]) return { customMovies: baseMovies };
+      baseMovies[index] = { ...baseMovies[index], done: newDone };
+      return { customMovies: baseMovies };
+    });
   }
 
   function removeCustomMovie(index) {
     const newCustomMovies = shared.customMovies.filter((_, i) => i !== index);
-    patchShared({ customMovies: newCustomMovies });
+    setShared((prev) => ({ ...prev, customMovies: newCustomMovies, updatedAt: Date.now() }));
+    updateRoomTransaction((base) => ({
+      customMovies: (base.customMovies || []).filter((_, i) => i !== index),
+    }));
   }
 
   // Date / countdown
@@ -347,7 +374,13 @@ export default function App() {
     };
 
     const next = [entry, ...playlist.filter((s) => !(s.dateKey === todayKey && s.who === who))];
-    patchShared({ playlist: next });
+    setShared((prev) => ({ ...prev, playlist: next, updatedAt: Date.now() }));
+    updateRoomTransaction((base) => {
+      const baseList = base.playlist || [];
+      return {
+        playlist: [entry, ...baseList.filter((s) => !(s.dateKey === todayKey && s.who === who))],
+      };
+    });
 
     if (isLea) {
       setLeaTitle("");
@@ -365,7 +398,11 @@ export default function App() {
   }
 
   function removeSong(dateKey, who) {
-    patchShared({ playlist: playlist.filter((s) => !(s.dateKey === dateKey && s.who === who)) });
+    const next = playlist.filter((s) => !(s.dateKey === dateKey && s.who === who));
+    setShared((prev) => ({ ...prev, playlist: next, updatedAt: Date.now() }));
+    updateRoomTransaction((base) => ({
+      playlist: (base.playlist || []).filter((s) => !(s.dateKey === dateKey && s.who === who)),
+    }));
   }
 
   const playlistSorted = useMemo(() => {
