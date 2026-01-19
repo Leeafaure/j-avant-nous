@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import confetti from "canvas-confetti";
 
 import { db } from "./firebase";
@@ -136,8 +136,6 @@ export default function App() {
   const [syncing, setSyncing] = useState(true);
   const [syncError, setSyncError] = useState("");
 
-  const suppressNextWrite = useRef(false);
-
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSyncError("");
@@ -148,14 +146,13 @@ export default function App() {
       async (snap) => {
         try {
           if (!snap.exists()) {
+            if (snap.metadata.fromCache) return;
             const init = defaultRoomState();
             await setDoc(roomRef, init);
-            suppressNextWrite.current = true;
             setShared(init);
             setSyncing(false);
             return;
           }
-          suppressNextWrite.current = true;
           setShared({ ...defaultRoomState(), ...snap.data() });
           setSyncing(false);
         } catch (e) {
@@ -176,11 +173,6 @@ export default function App() {
 
   async function patchShared(patch) {
     setShared((prev) => ({ ...prev, ...patch, updatedAt: Date.now() }));
-
-    if (suppressNextWrite.current) {
-      suppressNextWrite.current = false;
-      return;
-    }
 
     try {
       await updateDoc(roomRef, { ...patch, updatedAt: Date.now() });
@@ -1045,7 +1037,7 @@ export default function App() {
                     value={customMovieTitle}
                     onChange={(e) => setCustomMovieTitle(e.target.value)}
                     placeholder="Ex: La La Land"
-                    onKeyPress={(e) => e.key === 'Enter' && addCustomMovie()}
+                    onKeyDown={(e) => e.key === "Enter" && addCustomMovie()}
                   />
                 </div>
               </div>
