@@ -1,6 +1,5 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
-import { getMessaging } from "firebase/messaging";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDGrfSUU7mo7lALwMCoxNozQYyLqQQEcYE",
@@ -12,17 +11,5 @@ const firebaseConfig = {
   measurementId: "G-7D2ZCHFV16",
 };
 
-const app = initializeApp(firebaseConfig);
+export const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
-
-// Messaging - only initialize in production
-let messaging = null;
-if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
-  try {
-    messaging = getMessaging(app);
-  } catch (error) {
-    console.warn('Firebase messaging initialization failed:', error);
-  }
-}
-
-export { messaging };

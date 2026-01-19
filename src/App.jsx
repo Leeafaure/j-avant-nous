@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import confetti from "canvas-confetti";
 
 import { db } from "./firebase";
 import { doc, getDoc, onSnapshot, runTransaction, setDoc, updateDoc } from "firebase/firestore";
 import { defaultRoomState } from "./sync";
+import { registerPushToken } from "./push";
 
 const ROOM_ID = "gauthier-lea-2026-coeur"; // fixe = pas de code
 
@@ -116,16 +116,40 @@ function buildMapsLink({ city, placeName, address }) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
 }
 
+function getInitialPushStatus() {
+  if (typeof window === "undefined") return "unsupported";
+  if (!("Notification" in window)) return "unsupported";
+  return Notification.permission;
+}
+
+let confettiPromise = null;
+function fireConfetti(options) {
+  if (typeof window === "undefined") return;
+  if (!confettiPromise) confettiPromise = import("canvas-confetti");
+  confettiPromise
+    .then((mod) => (mod.default || mod)(options))
+    .catch(() => {});
+}
+
 export default function App() {
   const [tab, setTab] = useState("home"); // home | meet | playlist | todo | movies
   const [editMeet, setEditMeet] = useState(false);
   const [customMovieTitle, setCustomMovieTitle] = useState("");
+  const [pushStatus, setPushStatus] = useState(() => getInitialPushStatus());
+  const [pushError, setPushError] = useState("");
 
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 250);
+    const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    if (pushStatus !== "granted") return;
+    registerPushToken({ roomId: ROOM_ID }).then((res) => {
+      if (!res.ok) setPushError("Impossible d'activer les notifications.");
+    });
+  }, [pushStatus]);
 
   const todayKey = useMemo(() => todayKeyLocal(now), [now]);
   const untilMidnight = useMemo(() => msUntilMidnightLocal(now), [now]);
@@ -236,9 +260,19 @@ export default function App() {
     setCustomMovieTitle("");
   }
 
+  async function enablePush() {
+    setPushError("");
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      setPushStatus("unsupported");
+      return;
+    }
+    const permission = await Notification.requestPermission();
+    setPushStatus(permission);
+  }
+
   function toggleCustomMovie(index) {
     const newDone = !shared.customMovies[index].done;
-    if (newDone) confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+    if (newDone) fireConfetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
     const newCustomMovies = [...shared.customMovies];
     newCustomMovies[index] = { ...newCustomMovies[index], done: newDone };
     setShared((prev) => ({ ...prev, customMovies: newCustomMovies, updatedAt: Date.now() }));
@@ -292,7 +326,7 @@ export default function App() {
     const [y, m, d] = dateYYYYMMDD.split("-").map(Number);
     const local = new Date(y, (m || 1) - 1, d || 1, 12, 0, 0, 0);
     patchShared({ targetISO: local.toISOString() });
-    confetti({ particleCount: 90, spread: 70, origin: { y: 0.75 } });
+    fireConfetti({ particleCount: 90, spread: 70, origin: { y: 0.75 } });
   }
 
   // Moments clés
@@ -310,7 +344,7 @@ export default function App() {
     const love = pickDeterministic(LOVE_NOTES, seed + "|LOVE");
     const challenge = pickDeterministic(CHALLENGES, seed + "|CHALLENGE");
     patchShared({ daily: { dateKey: todayKey, love, challenge } });
-    confetti({ particleCount: 150, spread: 85, origin: { y: 0.7 } });
+    fireConfetti({ particleCount: 150, spread: 85, origin: { y: 0.7 } });
   }
 
   // Meet (résumé / édition)
@@ -394,7 +428,7 @@ export default function App() {
       setGauNote("");
     }
 
-    confetti({ particleCount: 120, spread: 80, origin: { y: 0.7 } });
+    fireConfetti({ particleCount: 120, spread: 80, origin: { y: 0.7 } });
   }
 
   function removeSong(dateKey, who) {
@@ -546,6 +580,35 @@ export default function App() {
                     )})`
                   : "Débloquer le mot + défi du jour ✨"}
               </button>
+
+              <div className="sep" />
+
+              <div className="sectionTitle">
+                <span>Notifications</span>
+                <span className="badge">🔔</span>
+              </div>
+
+              <div className="small" style={{ marginTop: 6 }}>
+                {pushStatus === "granted"
+                  ? "Notifications activées ✅"
+                  : pushStatus === "denied"
+                  ? "Notifications refusées. Active-les dans les réglages du navigateur."
+                  : pushStatus === "unsupported"
+                  ? "Notifications non disponibles sur ce navigateur."
+                  : "Active les notifications pour être prévenu des ajouts et du défi du jour."}
+              </div>
+
+              {pushError && (
+                <div className="small" style={{ marginTop: 6 }}>
+                  ⚠️ {pushError}
+                </div>
+              )}
+
+              {pushStatus !== "granted" && pushStatus !== "unsupported" && (
+                <button className="btn" onClick={enablePush}>
+                  Activer les notifications 🔔
+                </button>
+              )}
 
               <div className="heart">💞</div>
             </div>
@@ -995,7 +1058,7 @@ export default function App() {
                         checked={item.done}
                         onChange={() => {
                           const newDone = !item.done;
-                          if (newDone) confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+                          if (newDone) fireConfetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
                           const newTodo = [...shared.todo];
                           newTodo[index] = { ...item, done: newDone };
                           patchShared({ todo: newTodo });
@@ -1040,7 +1103,7 @@ export default function App() {
                         checked={movie.done}
                         onChange={() => {
                           const newDone = !movie.done;
-                          if (newDone) confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+                          if (newDone) fireConfetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
                           const newMovies = [...shared.movies];
                           newMovies[index] = { ...movie, done: newDone };
                           patchShared({ movies: newMovies });
