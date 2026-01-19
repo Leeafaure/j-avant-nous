@@ -3,7 +3,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { db } from "./firebase";
 import { doc, getDoc, onSnapshot, runTransaction, setDoc, updateDoc } from "firebase/firestore";
 import { defaultRoomState } from "./sync";
-import { registerPushToken } from "./push";
 
 const ROOM_ID = "gauthier-lea-2026-coeur"; // fixe = pas de code
 
@@ -116,12 +115,6 @@ function buildMapsLink({ city, placeName, address }) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
 }
 
-function getInitialPushStatus() {
-  if (typeof window === "undefined") return "unsupported";
-  if (!("Notification" in window)) return "unsupported";
-  return Notification.permission;
-}
-
 let confettiPromise = null;
 function fireConfetti(options) {
   if (typeof window === "undefined") return;
@@ -135,21 +128,12 @@ export default function App() {
   const [tab, setTab] = useState("home"); // home | meet | playlist | todo | movies
   const [editMeet, setEditMeet] = useState(false);
   const [customMovieTitle, setCustomMovieTitle] = useState("");
-  const [pushStatus, setPushStatus] = useState(() => getInitialPushStatus());
-  const [pushError, setPushError] = useState("");
 
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
-
-  useEffect(() => {
-    if (pushStatus !== "granted") return;
-    registerPushToken({ roomId: ROOM_ID }).then((res) => {
-      if (!res.ok) setPushError("Impossible d'activer les notifications.");
-    });
-  }, [pushStatus]);
 
   const todayKey = useMemo(() => todayKeyLocal(now), [now]);
   const untilMidnight = useMemo(() => msUntilMidnightLocal(now), [now]);
@@ -258,16 +242,6 @@ export default function App() {
       customMovies: [...(base.customMovies || []), newMovie],
     }));
     setCustomMovieTitle("");
-  }
-
-  async function enablePush() {
-    setPushError("");
-    if (typeof window === "undefined" || !("Notification" in window)) {
-      setPushStatus("unsupported");
-      return;
-    }
-    const permission = await Notification.requestPermission();
-    setPushStatus(permission);
   }
 
   function toggleCustomMovie(index) {
@@ -580,35 +554,6 @@ export default function App() {
                     )})`
                   : "Débloquer le mot + défi du jour ✨"}
               </button>
-
-              <div className="sep" />
-
-              <div className="sectionTitle">
-                <span>Notifications</span>
-                <span className="badge">🔔</span>
-              </div>
-
-              <div className="small" style={{ marginTop: 6 }}>
-                {pushStatus === "granted"
-                  ? "Notifications activées ✅"
-                  : pushStatus === "denied"
-                  ? "Notifications refusées. Active-les dans les réglages du navigateur."
-                  : pushStatus === "unsupported"
-                  ? "Notifications non disponibles sur ce navigateur."
-                  : "Active les notifications pour être prévenu des ajouts et du défi du jour."}
-              </div>
-
-              {pushError && (
-                <div className="small" style={{ marginTop: 6 }}>
-                  ⚠️ {pushError}
-                </div>
-              )}
-
-              {pushStatus !== "granted" && pushStatus !== "unsupported" && (
-                <button className="btn" onClick={enablePush}>
-                  Activer les notifications 🔔
-                </button>
-              )}
 
               <div className="heart">💞</div>
             </div>
