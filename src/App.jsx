@@ -6,6 +6,7 @@ import { doc, onSnapshot, runTransaction, setDoc, updateDoc } from "firebase/fir
 import { defaultRoomState } from "./sync";
 
 const ROOM_CODE_STORAGE_KEY = "avant-nous-room-code-v1";
+const ROOM_BACKUP_STORAGE_KEY = "avant-nous-room-backup-v1";
 const ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 const LOVE_NOTES = [
@@ -85,6 +86,33 @@ function persistRoomCode(code) {
     return;
   }
   window.localStorage.setItem(ROOM_CODE_STORAGE_KEY, normalized);
+}
+function extractRoomContent(source) {
+  const merged = { ...defaultRoomState(), ...(source || {}) };
+  delete merged.joinCode;
+  delete merged.ownerUid;
+  delete merged.participants;
+  delete merged.createdAt;
+  return merged;
+}
+function readRoomBackup() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(ROOM_BACKUP_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return extractRoomContent(parsed);
+  } catch {
+    return null;
+  }
+}
+function persistRoomBackup(data) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(ROOM_BACKUP_STORAGE_KEY, JSON.stringify(extractRoomContent(data)));
+  } catch {
+    // Ignore localStorage errors
+  }
 }
 
 function clampMin0(n) {
@@ -330,7 +358,9 @@ export default function App() {
             clearActiveRoom("Salon introuvable. Vérifie le code de salon.");
             return;
           }
-          setShared({ ...defaultRoomState(), ...snap.data() });
+          const merged = { ...defaultRoomState(), ...snap.data() };
+          setShared(merged);
+          persistRoomBackup(merged);
           setSyncing(false);
         } catch (e) {
           setSyncError(String(e?.message || e));
@@ -349,6 +379,11 @@ export default function App() {
 
     return () => unsub();
   }, [currentUser, roomCode, roomRef]);
+
+  useEffect(() => {
+    if (!roomCode || !isRoomMember) return;
+    persistRoomBackup(shared);
+  }, [isRoomMember, roomCode, shared]);
 
   function activateRoom(nextCode) {
     const normalized = normalizeRoomCode(nextCode);
@@ -374,12 +409,13 @@ export default function App() {
     setRoomError("");
 
     try {
+      const seed = readRoomBackup() || extractRoomContent(shared);
       let createdCode = "";
       for (let attempt = 0; attempt < 8; attempt += 1) {
         const code = generateRoomCode();
         const candidateRef = doc(db, "rooms", code);
         try {
-          const base = defaultRoomState();
+          const base = { ...defaultRoomState(), ...seed };
           await setDoc(candidateRef, {
             ...base,
             joinCode: code,
@@ -796,6 +832,9 @@ export default function App() {
             <button className="btn" onClick={createPrivateRoom} disabled={roomBusy}>
               {roomBusy ? "Création…" : "Créer un salon privé"}
             </button>
+            <div className="small" style={{ marginTop: 8 }}>
+              La création reprend automatiquement la dernière sauvegarde locale disponible.
+            </div>
 
             <div className="sep" />
 
