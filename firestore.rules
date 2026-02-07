@@ -17,8 +17,10 @@ service cloud.firestore {
       return isSignedIn()
         && resource.data.joinCode is string
         && request.resource.data.joinCode == resource.data.joinCode
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.participants[request.auth.uid] == true
-        && request.resource.data.diff(resource.data).changedKeys().hasOnly(["participants", "updatedAt"]);
+        && request.resource.data.updatedAt is int;
     }
 
     match /rooms/{roomId} {

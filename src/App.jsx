@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { auth, db } from "./firebase";
-import { doc, onSnapshot, runTransaction, updateDoc } from "firebase/firestore";
+import { doc, onSnapshot, runTransaction, setDoc, updateDoc } from "firebase/firestore";
 import { defaultRoomState } from "./sync";
 
 const ROOM_CODE_STORAGE_KEY = "avant-nous-room-code-v1";
@@ -327,9 +327,7 @@ export default function App() {
       (snap) => {
         try {
           if (!snap.exists()) {
-            setShared(defaultRoomState());
-            setSyncError("Salon introuvable. Vérifie le code de salon.");
-            setSyncing(false);
+            clearActiveRoom("Salon introuvable. Vérifie le code de salon.");
             return;
           }
           setShared({ ...defaultRoomState(), ...snap.data() });
@@ -340,6 +338,10 @@ export default function App() {
         }
       },
       (err) => {
+        if (err?.code === "permission-denied") {
+          clearActiveRoom("Accès refusé à ce salon. Rejoins-le avec un code valide.");
+          return;
+        }
         setSyncError(String(err?.message || err));
         setSyncing(false);
       }
@@ -356,12 +358,13 @@ export default function App() {
     setRoomError("");
   }
 
-  function clearActiveRoom() {
+  function clearActiveRoom(errorMessage = "") {
     setRoomCode("");
     persistRoomCode("");
     setRoomCodeInput("");
-    setRoomError("");
+    setRoomError(errorMessage);
     setSyncError("");
+    setSyncing(false);
     setShared(defaultRoomState());
   }
 
@@ -376,23 +379,21 @@ export default function App() {
         const code = generateRoomCode();
         const candidateRef = doc(db, "rooms", code);
         try {
-          await runTransaction(db, async (tx) => {
-            const snap = await tx.get(candidateRef);
-            if (snap.exists()) throw new Error("ROOM_EXISTS");
-            const base = defaultRoomState();
-            tx.set(candidateRef, {
-              ...base,
-              joinCode: code,
-              ownerUid: currentUser.uid,
-              participants: { [currentUser.uid]: true },
-              createdAt: Date.now(),
-              updatedAt: Date.now(),
-            });
+          const base = defaultRoomState();
+          await setDoc(candidateRef, {
+            ...base,
+            joinCode: code,
+            ownerUid: currentUser.uid,
+            participants: { [currentUser.uid]: true },
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
           });
           createdCode = code;
           break;
         } catch (e) {
-          if (String(e?.message || e) !== "ROOM_EXISTS") throw e;
+          const codeName = e?.code || "";
+          if (codeName === "permission-denied" || codeName === "already-exists") continue;
+          throw e;
         }
       }
 
@@ -417,22 +418,20 @@ export default function App() {
     setRoomError("");
     try {
       const joinRef = doc(db, "rooms", normalized);
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(joinRef);
-        if (!snap.exists()) throw new Error("ROOM_NOT_FOUND");
-        tx.update(joinRef, {
-          [`participants.${currentUser.uid}`]: true,
-          updatedAt: Date.now(),
-        });
+      await updateDoc(joinRef, {
+        [`participants.${currentUser.uid}`]: true,
+        updatedAt: Date.now(),
       });
       activateRoom(normalized);
       setRoomCodeInput("");
     } catch (e) {
-      const message = String(e?.message || e);
-      if (message === "ROOM_NOT_FOUND") {
+      const codeName = e?.code || "";
+      if (codeName === "not-found") {
         setRoomError("Salon introuvable. Vérifie le code.");
+      } else if (codeName === "permission-denied") {
+        setRoomError("Impossible de rejoindre ce salon avec ce code.");
       } else {
-        setRoomError(message);
+        setRoomError(String(e?.message || e));
       }
     } finally {
       setRoomBusy(false);
