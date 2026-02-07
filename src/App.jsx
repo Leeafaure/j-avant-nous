@@ -312,6 +312,7 @@ export default function App() {
   const [roomCodeInput, setRoomCodeInput] = useState("");
   const [roomBusy, setRoomBusy] = useState(false);
   const [roomError, setRoomError] = useState("");
+  const [showTopMenu, setShowTopMenu] = useState(false);
   const [legacyRecoveryAttempted, setLegacyRecoveryAttempted] = useState(false);
 
   const [now, setNow] = useState(() => new Date());
@@ -902,27 +903,29 @@ export default function App() {
     <div className="app">
       <div className="shell">
         <div className="topbar">
-          <div className="topbarCard">
-            <div className="topbarRow">
-              <span className="badge">💞 Avant de te revoir</span>
-              <span className="badge">📅 {todayKey}</span>
-            </div>
+          <span className="badge">💞 Avant de te revoir</span>
+          <button className="topbarMenuBtn" onClick={() => setShowTopMenu((prev) => !prev)}>
+            {showTopMenu ? "Fermer" : "Menu"}
+          </button>
+        </div>
 
-            <div className="topbarRow">
+        {showTopMenu && (
+          <div className="topMenuPanel">
+            <div className="topMenuRow">
               <div className="roomPill">
                 <span className="roomPillLabel">Salon</span>
                 <span className="roomPillValue">{roomCode}</span>
               </div>
-              <button className="topbarChangeBtn" onClick={clearActiveRoom}>
-                Changer
-              </button>
+              <span className="badge">📅 {todayKey}</span>
             </div>
-
             <div className={`syncPill ${syncError ? "syncPillError" : syncing ? "syncPillSyncing" : "syncPillOk"}`}>
               {syncing ? "Synchronisation…" : syncError ? `⚠️ ${syncError}` : "✅ Synchronisé"}
             </div>
+            <button className="topbarChangeBtn" onClick={clearActiveRoom}>
+              Changer de salon
+            </button>
           </div>
-        </div>
+        )}
 
         {/* HOME */}
         {tab === "home" && (
