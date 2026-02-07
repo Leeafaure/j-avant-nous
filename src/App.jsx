@@ -508,6 +508,7 @@ export default function App() {
   const [restEndInput, setRestEndInput] = useState("");
   const [restStartPeriodInput, setRestStartPeriodInput] = useState("full_day"); // full_day | evening
   const [restEndPeriodInput, setRestEndPeriodInput] = useState("full_day"); // full_day | evening
+  const [editingRestRangeKey, setEditingRestRangeKey] = useState("");
   const [roomCodeInput, setRoomCodeInput] = useState("");
   const [roomBusy, setRoomBusy] = useState(false);
   const [roomError, setRoomError] = useState("");
@@ -986,6 +987,23 @@ export default function App() {
           restPeriodRank(restEndPeriodInput) < restPeriodRank(restStartPeriodInput)))
   );
 
+  function resetRestRangeForm() {
+    setRestStartInput("");
+    setRestEndInput("");
+    setRestStartPeriodInput("full_day");
+    setRestEndPeriodInput("full_day");
+    setEditingRestRangeKey("");
+  }
+
+  function editGauthierRestRange(range) {
+    if (!range) return;
+    setRestStartInput(range.start || "");
+    setRestEndInput(range.end || "");
+    setRestStartPeriodInput(normalizeRestPeriod(range.startPeriod));
+    setRestEndPeriodInput(normalizeRestPeriod(range.endPeriod));
+    setEditingRestRangeKey(restRangeKey(range));
+  }
+
   function addGauthierRestRange() {
     const start = restStartInput.trim();
     const end = restEndInput.trim();
@@ -997,15 +1015,14 @@ export default function App() {
     if (!range) return;
 
     const rangeKey = restRangeKey(range);
-    if (gauthierRestRanges.some((item) => restRangeKey(item) === rangeKey)) {
-      setRestStartInput("");
-      setRestEndInput("");
-      setRestStartPeriodInput("full_day");
-      setRestEndPeriodInput("full_day");
+    const withoutEditedRanges = editingRestRangeKey
+      ? gauthierRestRanges.filter((item) => restRangeKey(item) !== editingRestRangeKey)
+      : gauthierRestRanges;
+    if (withoutEditedRanges.some((item) => restRangeKey(item) === rangeKey)) {
       return;
     }
 
-    const nextRanges = normalizeRestRanges([...gauthierRestRanges, range], []);
+    const nextRanges = normalizeRestRanges([...withoutEditedRanges, range], []);
     const nextLegacyDates = toLegacyRestDates(nextRanges);
     setShared((prev) => ({
       ...prev,
@@ -1015,24 +1032,24 @@ export default function App() {
     }));
     updateRoomTransaction((base) => {
       const baseRanges = normalizeRestRanges(base.gauthierRestRanges, base.gauthierRests);
-      if (baseRanges.some((item) => restRangeKey(item) === rangeKey)) {
+      const baseWithoutEdited = editingRestRangeKey
+        ? baseRanges.filter((item) => restRangeKey(item) !== editingRestRangeKey)
+        : baseRanges;
+      if (baseWithoutEdited.some((item) => restRangeKey(item) === rangeKey)) {
         return {
           gauthierRestRanges: baseRanges,
           gauthierRests: toLegacyRestDates(baseRanges),
         };
       }
 
-      const txNextRanges = normalizeRestRanges([...baseRanges, range], []);
+      const txNextRanges = normalizeRestRanges([...baseWithoutEdited, range], []);
       return {
         gauthierRestRanges: txNextRanges,
         gauthierRests: toLegacyRestDates(txNextRanges),
       };
     });
 
-    setRestStartInput("");
-    setRestEndInput("");
-    setRestStartPeriodInput("full_day");
-    setRestEndPeriodInput("full_day");
+    resetRestRangeForm();
     fireConfetti({ particleCount: 80, spread: 65, origin: { y: 0.72 } });
   }
 
@@ -1053,6 +1070,7 @@ export default function App() {
         gauthierRests: toLegacyRestDates(txNextRanges),
       };
     });
+    if (editingRestRangeKey === rangeKey) resetRestRangeForm();
   }
 
   const todoDoneCount = shared.todo.filter((t) => t.done).length;
@@ -1831,13 +1849,27 @@ export default function App() {
                 </div>
               )}
 
-              <button
-                className="btn"
-                onClick={addGauthierRestRange}
-                disabled={!restStartInput.trim() || !restEndInput.trim() || restRangeInvalid}
-              >
-                Ajouter la plage
-              </button>
+              {editingRestRangeKey && (
+                <div className="small" style={{ marginTop: 8, textAlign: "left" }}>
+                  Mode modification actif.
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  className="btn"
+                  style={{ width: "auto", flex: 1 }}
+                  onClick={addGauthierRestRange}
+                  disabled={!restStartInput.trim() || !restEndInput.trim() || restRangeInvalid}
+                >
+                  {editingRestRangeKey ? "Enregistrer" : "Ajouter la plage"}
+                </button>
+                {editingRestRangeKey && (
+                  <button className="btn" style={{ width: "auto", flex: 1 }} onClick={resetRestRangeForm}>
+                    Annuler
+                  </button>
+                )}
+              </div>
 
               <div className="sep" />
 
@@ -1859,13 +1891,22 @@ export default function App() {
                           <div className="itemMeta">{restRangeMeta(range, todayKey)}</div>
                         </div>
                         <div className="sub">{restRangeDetailLabel(range)}</div>
-                        <button
-                          className="btn"
-                          style={{ marginTop: 10, padding: "10px 12px", fontSize: 14 }}
-                          onClick={() => removeGauthierRestRange(rangeKey)}
-                        >
-                          Supprimer
-                        </button>
+                        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                          <button
+                            className="btn"
+                            style={{ marginTop: 0, width: "auto", flex: 1, padding: "10px 12px", fontSize: 14 }}
+                            onClick={() => editGauthierRestRange(range)}
+                          >
+                            Modifier
+                          </button>
+                          <button
+                            className="btn"
+                            style={{ marginTop: 0, width: "auto", flex: 1, padding: "10px 12px", fontSize: 14 }}
+                            onClick={() => removeGauthierRestRange(rangeKey)}
+                          >
+                            Supprimer
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -1893,13 +1934,22 @@ export default function App() {
                           <div className="itemMeta">{restRangeMeta(range, todayKey)}</div>
                         </div>
                         <div className="sub">{restRangeDetailLabel(range)}</div>
-                        <button
-                          className="btn"
-                          style={{ marginTop: 10, padding: "10px 12px", fontSize: 14 }}
-                          onClick={() => removeGauthierRestRange(rangeKey)}
-                        >
-                          Supprimer
-                        </button>
+                        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                          <button
+                            className="btn"
+                            style={{ marginTop: 0, width: "auto", flex: 1, padding: "10px 12px", fontSize: 14 }}
+                            onClick={() => editGauthierRestRange(range)}
+                          >
+                            Modifier
+                          </button>
+                          <button
+                            className="btn"
+                            style={{ marginTop: 0, width: "auto", flex: 1, padding: "10px 12px", fontSize: 14 }}
+                            onClick={() => removeGauthierRestRange(rangeKey)}
+                          >
+                            Supprimer
+                          </button>
+                        </div>
                       </div>
                     );
                     })}
