@@ -8,6 +8,7 @@ import { defaultRoomState } from "./sync";
 const ROOM_CODE_STORAGE_KEY = "avant-nous-room-code-v1";
 const ROOM_BACKUP_STORAGE_KEY = "avant-nous-room-backup-v1";
 const ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const LEGACY_ROOM_CODE = "gauthier-lea-2026-coeur";
 
 const LOVE_NOTES = [
   "Je fais semblant d’être sage… mais je pense à toi tout le temps 😇",
@@ -299,6 +300,7 @@ export default function App() {
   const [roomCodeInput, setRoomCodeInput] = useState("");
   const [roomBusy, setRoomBusy] = useState(false);
   const [roomError, setRoomError] = useState("");
+  const [legacyRecoveryAttempted, setLegacyRecoveryAttempted] = useState(false);
 
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -320,6 +322,7 @@ export default function App() {
   const [syncing, setSyncing] = useState(true);
   const [syncError, setSyncError] = useState("");
   const isRoomMember = Boolean(currentUser && shared?.participants?.[currentUser.uid]);
+  const canWriteInRoom = Boolean(roomRef && (isRoomMember || roomCode === LEGACY_ROOM_CODE));
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -384,6 +387,13 @@ export default function App() {
     if (!roomCode || !isRoomMember) return;
     persistRoomBackup(shared);
   }, [isRoomMember, roomCode, shared]);
+
+  useEffect(() => {
+    if (!currentUser || roomCode || legacyRecoveryAttempted) return;
+    if (readRoomBackup()) return;
+    setLegacyRecoveryAttempted(true);
+    activateRoom(LEGACY_ROOM_CODE);
+  }, [currentUser, legacyRecoveryAttempted, roomCode]);
 
   function activateRoom(nextCode) {
     const normalized = normalizeRoomCode(nextCode);
@@ -475,7 +485,7 @@ export default function App() {
   }
 
   async function patchShared(patch) {
-    if (!roomRef || !isRoomMember) return;
+    if (!canWriteInRoom) return;
     setShared((prev) => ({ ...prev, ...patch, updatedAt: Date.now() }));
 
     try {
@@ -486,7 +496,7 @@ export default function App() {
   }
 
   async function updateRoomTransaction(updateFromBase) {
-    if (!roomRef || !isRoomMember) return;
+    if (!canWriteInRoom) return;
     try {
       await runTransaction(db, async (tx) => {
         const snap = await tx.get(roomRef);
@@ -835,6 +845,17 @@ export default function App() {
             <div className="small" style={{ marginTop: 8 }}>
               La création reprend automatiquement la dernière sauvegarde locale disponible.
             </div>
+            <button
+              className="btn"
+              style={{ marginTop: 10, background: "linear-gradient(90deg, #fff7c6, #ffe7f5)" }}
+              onClick={() => {
+                setLegacyRecoveryAttempted(true);
+                activateRoom(LEGACY_ROOM_CODE);
+              }}
+              disabled={roomBusy}
+            >
+              Récupérer l’ancien salon
+            </button>
 
             <div className="sep" />
 

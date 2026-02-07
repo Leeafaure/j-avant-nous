@@ -13,6 +13,10 @@ service cloud.firestore {
       return isSignedIn() && resource.data.ownerUid == request.auth.uid;
     }
 
+    function isLegacyRoom() {
+      return isSignedIn() && resource.id == "gauthier-lea-2026-coeur";
+    }
+
     function isJoinUpdate() {
       return isSignedIn()
         && resource.data.joinCode is string
@@ -30,8 +34,8 @@ service cloud.firestore {
         && request.resource.data.joinCode.size() >= 6
         && request.resource.data.participants[request.auth.uid] == true;
 
-      allow read: if isParticipant();
-      allow update: if isParticipant() || isJoinUpdate();
+      allow read: if isParticipant() || isLegacyRoom();
+      allow update: if isParticipant() || isJoinUpdate() || isLegacyRoom();
       allow delete: if isOwner();
     }
   }
