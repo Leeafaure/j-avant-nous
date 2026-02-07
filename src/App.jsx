@@ -349,52 +349,86 @@ function relativeDaysLabel(days) {
 function normalizeRestPeriod(value) {
   return value === "evening" ? "evening" : "full_day";
 }
+function restPeriodRank(period) {
+  return normalizeRestPeriod(period) === "evening" ? 1 : 0;
+}
 function restPeriodLabel(period) {
   return normalizeRestPeriod(period) === "evening" ? "Soirée" : "Journée entière";
+}
+function formatDateWithRestPeriod(dateKey, period) {
+  const dateText = formatDateKeyFr(dateKey);
+  if (normalizeRestPeriod(period) === "evening") return `${dateText} (soirée)`;
+  return `${dateText} (journée)`;
 }
 function normalizeRestRanges(rawRanges, legacyDates) {
   const next = [];
   const seen = new Set();
 
-  const pushRange = (startKey, endKey, periodValue = "full_day") => {
+  const pushRange = (
+    startKey,
+    endKey,
+    startPeriodValue = "full_day",
+    endPeriodValue = "full_day"
+  ) => {
     if (!parseDateKeyLocal(startKey) || !parseDateKeyLocal(endKey)) return;
     let start = String(startKey);
     let end = String(endKey);
-    const period = normalizeRestPeriod(periodValue);
+    let startPeriod = normalizeRestPeriod(startPeriodValue);
+    let endPeriod = normalizeRestPeriod(endPeriodValue);
     if (end < start) {
       const swap = start;
       start = end;
       end = swap;
+      const swapPeriod = startPeriod;
+      startPeriod = endPeriod;
+      endPeriod = swapPeriod;
     }
-    const key = `${start}|${end}|${period}`;
+    const key = `${start}|${end}|${startPeriod}|${endPeriod}`;
     if (seen.has(key)) return;
     seen.add(key);
-    next.push({ start, end, period });
+    next.push({ start, end, startPeriod, endPeriod });
   };
 
   const ranges = Array.isArray(rawRanges) ? rawRanges : [];
   for (const range of ranges) {
     if (typeof range === "string") {
-      pushRange(range, range, "full_day");
+      pushRange(range, range, "full_day", "full_day");
       continue;
     }
     if (!range || typeof range !== "object") continue;
     const start = range.start ?? range.from ?? range.startDate ?? "";
     const end = range.end ?? range.to ?? range.endDate ?? "";
-    const period = range.period ?? range.timeType ?? range.slot ?? range.kind ?? "full_day";
-    pushRange(start, end || start, period);
+    const legacyPeriod = range.period ?? range.timeType ?? range.slot ?? range.kind ?? "full_day";
+    const startPeriod = range.startPeriod ?? legacyPeriod;
+    const endPeriod = range.endPeriod ?? legacyPeriod;
+    pushRange(start, end || start, startPeriod, endPeriod);
   }
 
   const dates = Array.isArray(legacyDates) ? legacyDates : [];
-  for (const dateKey of dates) pushRange(dateKey, dateKey, "full_day");
+  for (const dateKey of dates) pushRange(dateKey, dateKey, "full_day", "full_day");
 
-  next.sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end) || a.period.localeCompare(b.period));
+  next.sort(
+    (a, b) =>
+      a.start.localeCompare(b.start) ||
+      a.end.localeCompare(b.end) ||
+      restPeriodRank(a.startPeriod) - restPeriodRank(b.startPeriod) ||
+      restPeriodRank(a.endPeriod) - restPeriodRank(b.endPeriod)
+  );
   return next;
+}
+function restRangeKey(range) {
+  if (!range) return "";
+  return `${range.start}|${range.end}|${normalizeRestPeriod(range.startPeriod)}|${normalizeRestPeriod(range.endPeriod)}`;
 }
 function formatRestRange(range) {
   if (!range) return "";
-  if (range.start === range.end) return formatDateKeyFr(range.start);
-  return `${formatDateKeyFr(range.start)} → ${formatDateKeyFr(range.end)}`;
+  if (range.start === range.end && normalizeRestPeriod(range.startPeriod) === normalizeRestPeriod(range.endPeriod)) {
+    return formatDateWithRestPeriod(range.start, range.startPeriod);
+  }
+  return `${formatDateWithRestPeriod(range.start, range.startPeriod)} → ${formatDateWithRestPeriod(
+    range.end,
+    range.endPeriod
+  )}`;
 }
 function restRangeLength(range) {
   const diff = daysBetweenDateKeys(range?.start, range?.end);
@@ -425,16 +459,25 @@ function restRangeSummary(range, todayKey) {
 }
 function toLegacyRestDates(ranges) {
   return ranges
-    .filter((range) => range.start === range.end && normalizeRestPeriod(range.period) === "full_day")
+    .filter(
+      (range) =>
+        range.start === range.end &&
+        normalizeRestPeriod(range.startPeriod) === "full_day" &&
+        normalizeRestPeriod(range.endPeriod) === "full_day"
+    )
     .map((range) => range.start);
 }
 function restRangeDetailLabel(range) {
   const length = restRangeLength(range);
-  const period = normalizeRestPeriod(range?.period);
-  if (period === "evening") {
-    return `${restPeriodLabel(period)} • ${length > 1 ? `${length} soirées` : "1 soirée"}`;
+  const startPeriod = normalizeRestPeriod(range?.startPeriod);
+  const endPeriod = normalizeRestPeriod(range?.endPeriod);
+  if (startPeriod === endPeriod && startPeriod === "evening") {
+    return `${restPeriodLabel(startPeriod)} • ${length > 1 ? `${length} soirées` : "1 soirée"}`;
   }
-  return `${restPeriodLabel(period)} • ${length > 1 ? `${length} jours de repos` : "1 jour de repos"}`;
+  if (startPeriod === endPeriod && startPeriod === "full_day") {
+    return `${restPeriodLabel(startPeriod)} • ${length > 1 ? `${length} jours de repos` : "1 jour de repos"}`;
+  }
+  return `${restPeriodLabel(startPeriod)} → ${restPeriodLabel(endPeriod)} • ${length > 1 ? `${length} jours` : "1 jour"}`;
 }
 
 function buildMapsLink({ city, placeName, address }) {
@@ -463,7 +506,8 @@ export default function App() {
   const [customMovieTitle, setCustomMovieTitle] = useState("");
   const [restStartInput, setRestStartInput] = useState("");
   const [restEndInput, setRestEndInput] = useState("");
-  const [restPeriodInput, setRestPeriodInput] = useState("full_day"); // full_day | evening
+  const [restStartPeriodInput, setRestStartPeriodInput] = useState("full_day"); // full_day | evening
+  const [restEndPeriodInput, setRestEndPeriodInput] = useState("full_day"); // full_day | evening
   const [roomCodeInput, setRoomCodeInput] = useState("");
   const [roomBusy, setRoomBusy] = useState(false);
   const [roomError, setRoomError] = useState("");
@@ -934,20 +978,30 @@ export default function App() {
   );
 
   const nextRestRange = upcomingRestRanges[0] || null;
-  const restRangeInvalid = Boolean(restStartInput && restEndInput && restEndInput < restStartInput);
+  const restRangeInvalid = Boolean(
+    restStartInput &&
+      restEndInput &&
+      (restEndInput < restStartInput ||
+        (restEndInput === restStartInput &&
+          restPeriodRank(restEndPeriodInput) < restPeriodRank(restStartPeriodInput)))
+  );
 
   function addGauthierRestRange() {
     const start = restStartInput.trim();
     const end = restEndInput.trim();
-    const normalizedInput = normalizeRestRanges([{ start, end, period: restPeriodInput }], []);
+    const normalizedInput = normalizeRestRanges(
+      [{ start, end, startPeriod: restStartPeriodInput, endPeriod: restEndPeriodInput }],
+      []
+    );
     const range = normalizedInput[0];
     if (!range) return;
 
-    const rangeKey = `${range.start}|${range.end}|${normalizeRestPeriod(range.period)}`;
-    if (gauthierRestRanges.some((item) => `${item.start}|${item.end}|${normalizeRestPeriod(item.period)}` === rangeKey)) {
+    const rangeKey = restRangeKey(range);
+    if (gauthierRestRanges.some((item) => restRangeKey(item) === rangeKey)) {
       setRestStartInput("");
       setRestEndInput("");
-      setRestPeriodInput("full_day");
+      setRestStartPeriodInput("full_day");
+      setRestEndPeriodInput("full_day");
       return;
     }
 
@@ -961,9 +1015,7 @@ export default function App() {
     }));
     updateRoomTransaction((base) => {
       const baseRanges = normalizeRestRanges(base.gauthierRestRanges, base.gauthierRests);
-      if (
-        baseRanges.some((item) => `${item.start}|${item.end}|${normalizeRestPeriod(item.period)}` === rangeKey)
-      ) {
+      if (baseRanges.some((item) => restRangeKey(item) === rangeKey)) {
         return {
           gauthierRestRanges: baseRanges,
           gauthierRests: toLegacyRestDates(baseRanges),
@@ -979,14 +1031,13 @@ export default function App() {
 
     setRestStartInput("");
     setRestEndInput("");
-    setRestPeriodInput("full_day");
+    setRestStartPeriodInput("full_day");
+    setRestEndPeriodInput("full_day");
     fireConfetti({ particleCount: 80, spread: 65, origin: { y: 0.72 } });
   }
 
   function removeGauthierRestRange(rangeKey) {
-    const nextRanges = gauthierRestRanges.filter(
-      (range) => `${range.start}|${range.end}|${normalizeRestPeriod(range.period)}` !== rangeKey
-    );
+    const nextRanges = gauthierRestRanges.filter((range) => restRangeKey(range) !== rangeKey);
     const normalized = normalizeRestRanges(nextRanges, []);
     setShared((prev) => ({
       ...prev,
@@ -996,9 +1047,7 @@ export default function App() {
     }));
     updateRoomTransaction((base) => {
       const baseRanges = normalizeRestRanges(base.gauthierRestRanges, base.gauthierRests);
-      const txNextRanges = baseRanges.filter(
-        (range) => `${range.start}|${range.end}|${normalizeRestPeriod(range.period)}` !== rangeKey
-      );
+      const txNextRanges = baseRanges.filter((range) => restRangeKey(range) !== rangeKey);
       return {
         gauthierRestRanges: txNextRanges,
         gauthierRests: toLegacyRestDates(txNextRanges),
@@ -1742,25 +1791,43 @@ export default function App() {
               </div>
 
               <div className="small" style={{ marginTop: 8, textAlign: "left" }}>
-                Type de repos :
+                Type du début :
               </div>
               <div className="subtabs" style={{ marginTop: 6 }}>
                 <button
-                  className={`subtabBtn ${restPeriodInput === "full_day" ? "subtabBtnActive" : ""}`}
-                  onClick={() => setRestPeriodInput("full_day")}
+                  className={`subtabBtn ${restStartPeriodInput === "full_day" ? "subtabBtnActive" : ""}`}
+                  onClick={() => setRestStartPeriodInput("full_day")}
                 >
                   Journée entière
                 </button>
                 <button
-                  className={`subtabBtn ${restPeriodInput === "evening" ? "subtabBtnActive" : ""}`}
-                  onClick={() => setRestPeriodInput("evening")}
+                  className={`subtabBtn ${restStartPeriodInput === "evening" ? "subtabBtnActive" : ""}`}
+                  onClick={() => setRestStartPeriodInput("evening")}
+                >
+                  Soirée
+                </button>
+              </div>
+
+              <div className="small" style={{ marginTop: 8, textAlign: "left" }}>
+                Type de fin :
+              </div>
+              <div className="subtabs" style={{ marginTop: 6 }}>
+                <button
+                  className={`subtabBtn ${restEndPeriodInput === "full_day" ? "subtabBtnActive" : ""}`}
+                  onClick={() => setRestEndPeriodInput("full_day")}
+                >
+                  Journée entière
+                </button>
+                <button
+                  className={`subtabBtn ${restEndPeriodInput === "evening" ? "subtabBtnActive" : ""}`}
+                  onClick={() => setRestEndPeriodInput("evening")}
                 >
                   Soirée
                 </button>
               </div>
               {restRangeInvalid && (
                 <div className="small" style={{ marginTop: 8 }}>
-                  La date de fin doit être identique ou après la date de début.
+                  La fin doit être après le début (date et type de repos).
                 </div>
               )}
 
@@ -1784,7 +1851,7 @@ export default function App() {
               ) : (
                 <div className="list">
                   {upcomingRestRanges.map((range) => {
-                    const rangeKey = `${range.start}|${range.end}|${normalizeRestPeriod(range.period)}`;
+                    const rangeKey = restRangeKey(range);
                     return (
                       <div className="item" key={`upcoming-${rangeKey}`}>
                         <div className="itemTop">
@@ -1818,7 +1885,7 @@ export default function App() {
                   </div>
                   <div className="list">
                     {[...previousRestRanges].reverse().map((range) => {
-                      const rangeKey = `${range.start}|${range.end}|${normalizeRestPeriod(range.period)}`;
+                      const rangeKey = restRangeKey(range);
                       return (
                       <div className="item" key={`past-${rangeKey}`}>
                         <div className="itemTop">
