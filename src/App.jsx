@@ -10,24 +10,149 @@ const ROOM_BACKUP_STORAGE_KEY = "avant-nous-room-backup-v1";
 const ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const LEGACY_ROOM_CODE = "gauthier-lea-2026-coeur";
 
-const LOVE_NOTES = [
-  "Je fais semblant d’être sage… mais je pense à toi tout le temps 😇",
-  "Mon programme du jour : te manquer. Encore.",
-  "Je suis en manque… de toi. Et de tes câlins.",
-  "Je te préviens : je vais te faire perdre ton espace vital 💞",
-  "Prépare-toi… je vais te dévorer de bisous 💋",
-  "Je pense à toi… et c’est rarement innocent.",
-  "Spoiler : tu vas pas t’en sortir indemne 😘",
-  "Ça devient urgent là. Urgent câlin. Urgent toi.",
-];
+const QUIZ_PLAYER_STORAGE_KEY = "avant-nous-quiz-player-v1";
 
-const CHALLENGES = [
-  "Envoie un vocal (5 sec) : “Je te veux là, maintenant.”",
-  "Écris : “J’ai envie de…” et finis la phrase (douce… ou pas 😈).",
-  "Défi musique : choisis une chanson qui te donne envie de l’embrasser.",
-  "Défi souvenir : raconte un moment drôle de vous deux en 2 phrases.",
-  "Fais une ‘review’ de ton copain : ⭐⭐⭐⭐⭐ + une phrase.",
-  "Envoie “Je pense à toi” mais en version dramatique 😭🎭",
+const QUIZ_QUESTIONS = [
+  {
+    id: "capital-canada",
+    prompt: "Quelle est la capitale du Canada ?",
+    options: ["Toronto", "Ottawa", "Vancouver", "Montréal"],
+    correctIndex: 1,
+    explanation: "Ottawa est la capitale du Canada depuis 1857.",
+  },
+  {
+    id: "planet-red",
+    prompt: "Quelle planète est surnommée la planète rouge ?",
+    options: ["Jupiter", "Vénus", "Mars", "Mercure"],
+    correctIndex: 2,
+    explanation: "Mars paraît rouge à cause de l’oxyde de fer présent à sa surface.",
+  },
+  {
+    id: "mona-lisa",
+    prompt: "Qui a peint La Joconde ?",
+    options: ["Raphaël", "Michel-Ange", "Léonard de Vinci", "Donatello"],
+    correctIndex: 2,
+    explanation: "La Joconde est une oeuvre de Léonard de Vinci.",
+  },
+  {
+    id: "largest-ocean",
+    prompt: "Quel est le plus grand océan du monde ?",
+    options: ["Océan Atlantique", "Océan Indien", "Océan Arctique", "Océan Pacifique"],
+    correctIndex: 3,
+    explanation: "L’océan Pacifique est le plus vaste de la planète.",
+  },
+  {
+    id: "france-motto",
+    prompt: "Quelle est la devise de la République française ?",
+    options: ["Liberté, Égalité, Fraternité", "Travail, Famille, Patrie", "Unité, Justice, Paix", "Force, Honneur, Gloire"],
+    correctIndex: 0,
+    explanation: "La devise officielle est Liberté, Égalité, Fraternité.",
+  },
+  {
+    id: "everest-range",
+    prompt: "Dans quelle chaîne de montagnes se trouve l’Everest ?",
+    options: ["Les Alpes", "Les Andes", "L’Himalaya", "Les Rocheuses"],
+    correctIndex: 2,
+    explanation: "L’Everest se situe dans l’Himalaya.",
+  },
+  {
+    id: "water-formula",
+    prompt: "Quelle est la formule chimique de l’eau ?",
+    options: ["CO2", "H2O", "O2", "NaCl"],
+    correctIndex: 1,
+    explanation: "L’eau est composée de deux atomes d’hydrogène et un d’oxygène : H2O.",
+  },
+  {
+    id: "rome-country",
+    prompt: "Rome est la capitale de quel pays ?",
+    options: ["Espagne", "Portugal", "Italie", "Grèce"],
+    correctIndex: 2,
+    explanation: "Rome est la capitale de l’Italie.",
+  },
+  {
+    id: "largest-mammal",
+    prompt: "Quel est le plus grand mammifère du monde ?",
+    options: ["Éléphant d’Afrique", "Baleine bleue", "Orque", "Girafe"],
+    correctIndex: 1,
+    explanation: "La baleine bleue est le plus grand mammifère connu.",
+  },
+  {
+    id: "july-bastille",
+    prompt: "Quel jour célèbre-t-on la fête nationale en France ?",
+    options: ["1er mai", "8 mai", "14 juillet", "11 novembre"],
+    correctIndex: 2,
+    explanation: "La fête nationale française est le 14 juillet.",
+  },
+  {
+    id: "largest-continent",
+    prompt: "Quel est le plus grand continent ?",
+    options: ["Afrique", "Asie", "Amérique du Nord", "Europe"],
+    correctIndex: 1,
+    explanation: "L’Asie est le plus grand continent en superficie.",
+  },
+  {
+    id: "sahara-location",
+    prompt: "Le Sahara se trouve principalement sur quel continent ?",
+    options: ["Asie", "Amérique du Sud", "Afrique", "Océanie"],
+    correctIndex: 2,
+    explanation: "Le Sahara s’étend en Afrique du Nord.",
+  },
+  {
+    id: "earth-satellite",
+    prompt: "Quel est le satellite naturel de la Terre ?",
+    options: ["Titan", "La Lune", "Europe", "Phobos"],
+    correctIndex: 1,
+    explanation: "Le satellite naturel de la Terre est la Lune.",
+  },
+  {
+    id: "giza-country",
+    prompt: "Dans quel pays se trouvent les pyramides de Gizeh ?",
+    options: ["Égypte", "Jordanie", "Maroc", "Tunisie"],
+    correctIndex: 0,
+    explanation: "Les pyramides de Gizeh se trouvent en Égypte.",
+  },
+  {
+    id: "voltaire-name",
+    prompt: "Voltaire est le pseudonyme de quel écrivain ?",
+    options: ["Jean-Jacques Rousseau", "François-Marie Arouet", "Denis Diderot", "Montesquieu"],
+    correctIndex: 1,
+    explanation: "Voltaire est le pseudonyme de François-Marie Arouet.",
+  },
+  {
+    id: "boiling-water",
+    prompt: "À pression normale, à quelle température l’eau bout-elle ?",
+    options: ["80°C", "90°C", "100°C", "120°C"],
+    correctIndex: 2,
+    explanation: "À pression atmosphérique standard, l’eau bout à 100°C.",
+  },
+  {
+    id: "brazil-language",
+    prompt: "Quelle est la langue officielle du Brésil ?",
+    options: ["Espagnol", "Portugais", "Anglais", "Français"],
+    correctIndex: 1,
+    explanation: "Le portugais est la langue officielle du Brésil.",
+  },
+  {
+    id: "human-bones",
+    prompt: "Combien d’os compte le corps humain adulte ?",
+    options: ["206", "186", "226", "246"],
+    correctIndex: 0,
+    explanation: "Le corps humain adulte comporte généralement 206 os.",
+  },
+  {
+    id: "sun-star",
+    prompt: "Le Soleil est...",
+    options: ["Une planète", "Une étoile", "Un satellite", "Une comète"],
+    correctIndex: 1,
+    explanation: "Le Soleil est une étoile.",
+  },
+  {
+    id: "seine-city",
+    prompt: "La Seine traverse principalement quelle ville ?",
+    options: ["Lyon", "Marseille", "Paris", "Bordeaux"],
+    correctIndex: 2,
+    explanation: "La Seine traverse Paris.",
+  },
 ];
 
 function pad2(n) {
@@ -126,6 +251,17 @@ function persistRoomBackup(data) {
   } catch {
     // Ignore localStorage errors
   }
+}
+function normalizeQuizPlayer(value) {
+  return value === "gauthier" ? "gauthier" : "lea";
+}
+function readStoredQuizPlayer() {
+  if (typeof window === "undefined") return "lea";
+  return normalizeQuizPlayer(window.localStorage.getItem(QUIZ_PLAYER_STORAGE_KEY));
+}
+function persistQuizPlayer(player) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(QUIZ_PLAYER_STORAGE_KEY, normalizeQuizPlayer(player));
 }
 
 function clampMin0(n) {
@@ -312,6 +448,7 @@ export default function App() {
   const [roomCodeInput, setRoomCodeInput] = useState("");
   const [roomBusy, setRoomBusy] = useState(false);
   const [roomError, setRoomError] = useState("");
+  const [quizPlayer, setQuizPlayer] = useState(() => readStoredQuizPlayer());
   const [showTopMenu, setShowTopMenu] = useState(false);
   const [legacyRecoveryAttempted, setLegacyRecoveryAttempted] = useState(false);
 
@@ -400,6 +537,10 @@ export default function App() {
     if (!roomCode || !isRoomMember) return;
     persistRoomBackup(shared);
   }, [isRoomMember, roomCode, shared]);
+
+  useEffect(() => {
+    persistQuizPlayer(quizPlayer);
+  }, [quizPlayer]);
 
   useEffect(() => {
     if (!currentUser || roomCode || legacyRecoveryAttempted) return;
@@ -523,28 +664,6 @@ export default function App() {
     }
   }
 
-  async function shareToSnapchat() {
-    if (!shared.daily?.challenge) return;
-
-    const text = `Mini-défi du jour 😈✨\n\n${shared.daily.challenge}\n\n💖 signé : nous`;
-
-    // 1) Copier
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(text);
-      } else {
-        // fallback ancien iOS
-        window.prompt("Copie ce texte :", text);
-      }
-    } catch {
-      window.prompt("Copie ce texte :", text);
-    }
-
-    // 2) Ouvrir Snapchat
-    // (sur iPhone si Snapchat est installé -> s'ouvre)
-    window.location.href = "snapchat://";
-  }
-
   function addCustomMovie() {
     if (!customMovieTitle.trim()) return;
     const newMovie = { title: customMovieTitle.trim(), done: false };
@@ -623,14 +742,64 @@ export default function App() {
   const daysToCap = cap !== null ? Math.max(0, daysDiff - cap) : null;
   const vibe = vibeLine(daysDiff);
 
-  // Daily
-  const alreadyUnlockedToday = shared.daily?.dateKey === todayKey;
-  function unlockDaily() {
-    const seed = `${todayKey}|${shared.targetISO || "no-target"}|ROOM:${roomCode || "no-room"}`;
-    const love = pickDeterministic(LOVE_NOTES, seed + "|LOVE");
-    const challenge = pickDeterministic(CHALLENGES, seed + "|CHALLENGE");
-    patchShared({ daily: { dateKey: todayKey, love, challenge } });
-    fireConfetti({ particleCount: 150, spread: 85, origin: { y: 0.7 } });
+  // Quiz du jour
+  const dailyQuizQuestion = useMemo(
+    () => pickDeterministic(QUIZ_QUESTIONS, `${todayKey}|ROOM:${roomCode || "no-room"}|QUIZ`),
+    [todayKey, roomCode]
+  );
+  const quizAnswers = useMemo(() => {
+    const baseQuiz = shared.dailyQuiz;
+    if (!baseQuiz || baseQuiz.dateKey !== todayKey || baseQuiz.questionId !== dailyQuizQuestion.id) {
+      return { lea: null, gauthier: null };
+    }
+    return {
+      lea: baseQuiz.answers?.lea || null,
+      gauthier: baseQuiz.answers?.gauthier || null,
+    };
+  }, [shared.dailyQuiz, todayKey, dailyQuizQuestion.id]);
+
+  const quizOtherPlayer = quizPlayer === "lea" ? "gauthier" : "lea";
+  const quizMyAnswer = quizAnswers[quizPlayer];
+  const quizOtherAnswer = quizAnswers[quizOtherPlayer];
+  const bothAnswered = Boolean(quizAnswers.lea?.answeredAt && quizAnswers.gauthier?.answeredAt);
+
+  function quizAnswerLabel(answer) {
+    if (!answer) return "En attente";
+    return answer.isCorrect ? "✅ Bonne réponse" : "❌ Mauvaise réponse";
+  }
+
+  function submitDailyQuizAnswer(optionIndex) {
+    if (!canWriteInRoom) return;
+    const isCorrectNow = optionIndex === dailyQuizQuestion.correctIndex;
+
+    updateRoomTransaction((base) => {
+      const question = pickDeterministic(QUIZ_QUESTIONS, `${todayKey}|ROOM:${roomCode || "no-room"}|QUIZ`);
+      const currentQuiz =
+        base.dailyQuiz && base.dailyQuiz.dateKey === todayKey && base.dailyQuiz.questionId === question.id
+          ? base.dailyQuiz
+          : { dateKey: todayKey, questionId: question.id, answers: {} };
+
+      const answers = { ...(currentQuiz.answers || {}) };
+      if (answers[quizPlayer]?.answeredAt) return null;
+
+      const isCorrect = optionIndex === question.correctIndex;
+      answers[quizPlayer] = {
+        optionIndex,
+        isCorrect,
+        answeredAt: Date.now(),
+        uid: currentUser?.uid || "",
+      };
+
+      return {
+        dailyQuiz: {
+          dateKey: todayKey,
+          questionId: question.id,
+          answers,
+        },
+      };
+    });
+
+    if (isCorrectNow) fireConfetti({ particleCount: 110, spread: 80, origin: { y: 0.7 } });
   }
 
   // Meet (résumé / édition)
@@ -1012,42 +1181,76 @@ export default function App() {
 
               <div className="sep" />
 
-              {/* Daily */}
-              <div className="grid2">
-                <div className="panel">
-                  <div className="panelTitle">Mot du jour</div>
-                  <div className="panelBody">{shared.daily ? shared.daily.love : "Débloque ton mot ✨"}</div>
-                </div>
-                <div className="panel">
-                  <div className="panelTitle blue">Mini-défi</div>
-                  <div className="panelBody">{shared.daily ? shared.daily.challenge : "Débloque ton mini-défi ✨"}</div>
+              {/* Quiz du jour */}
+              <div className="sectionTitle">
+                <span>Quiz culture générale</span>
+                <span className="badge">🧠</span>
+              </div>
+
+              <div className="panel">
+                <div className="panelTitle">Question du jour</div>
+                <div className="panelBody" style={{ marginTop: 8 }}>
+                  {dailyQuizQuestion.prompt}
                 </div>
               </div>
-              <button
-              className="btn"
-              style={{
-                marginTop: 10,
-                background: "linear-gradient(90deg, #fff59b, #ffe4f2)",
-              }}
-              onClick={shareToSnapchat}
-              disabled={!shared.daily}
-            >
-              👻📋 Partager le mini-défi dans Snapchat
-            </button>
 
-            <div className="small" style={{ marginTop: 6 }}>
-              {shared.daily
-                ? "Le défi est copié → il te reste à coller dans Snapchat 😈📸"
-                : "Débloque d’abord le mini-défi ✨"}
-            </div>
+              <div className="small" style={{ marginTop: 8, textAlign: "left" }}>
+                Tu réponds en tant que :
+              </div>
+              <div className="subtabs" style={{ marginTop: 6 }}>
+                <button
+                  className={`subtabBtn ${quizPlayer === "lea" ? "subtabBtnActive" : ""}`}
+                  onClick={() => setQuizPlayer("lea")}
+                >
+                  Léa
+                </button>
+                <button
+                  className={`subtabBtn ${quizPlayer === "gauthier" ? "subtabBtnActive" : ""}`}
+                  onClick={() => setQuizPlayer("gauthier")}
+                >
+                  Gauthier
+                </button>
+              </div>
 
-              <button className="btn" onClick={unlockDaily} disabled={alreadyUnlockedToday}>
-                {alreadyUnlockedToday
-                  ? `Reviens demain (dans ${pad2(untilMidnightParts.hours)}:${pad2(untilMidnightParts.minutes)}:${pad2(
-                      untilMidnightParts.seconds
-                    )})`
-                  : "Débloquer le mot + défi du jour ✨"}
-              </button>
+              <div className="list">
+                {dailyQuizQuestion.options.map((option, index) => (
+                  <button
+                    key={option}
+                    className="btn"
+                    style={{
+                      marginTop: 0,
+                      textAlign: "left",
+                      background:
+                        quizMyAnswer?.optionIndex === index
+                          ? "linear-gradient(90deg, #fff0a6, #ffe4f2)"
+                          : "linear-gradient(90deg, #ffc6dc, #d9efff)",
+                    }}
+                    onClick={() => submitDailyQuizAnswer(index)}
+                    disabled={Boolean(quizMyAnswer)}
+                  >
+                    {String.fromCharCode(65 + index)}. {option}
+                  </button>
+                ))}
+              </div>
+
+              <div className="grid2">
+                <div className="panel">
+                  <div className="panelTitle">{quizPlayer === "lea" ? "Léa" : "Gauthier"}</div>
+                  <div className="panelBody">{quizAnswerLabel(quizMyAnswer)}</div>
+                </div>
+                <div className="panel">
+                  <div className="panelTitle blue">{quizOtherPlayer === "lea" ? "Léa" : "Gauthier"}</div>
+                  <div className="panelBody">{quizAnswerLabel(quizOtherAnswer)}</div>
+                </div>
+              </div>
+
+              {(quizMyAnswer || bothAnswered) && (
+                <div className="small" style={{ marginTop: 8, textAlign: "left" }}>
+                  Réponse : <strong>{dailyQuizQuestion.options[dailyQuizQuestion.correctIndex]}</strong>
+                  {" — "}
+                  {dailyQuizQuestion.explanation}
+                </div>
+              )}
 
               <div className="heart">💞</div>
             </div>

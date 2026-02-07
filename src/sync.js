@@ -3,6 +3,7 @@ export function defaultRoomState() {
     targetISO: "",
     updatedAt: Date.now(),
     daily: null,
+    dailyQuiz: null,
     playlist: [],
     gauthierRests: [],
     gauthierRestRanges: [],
