@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 
-import { db } from "./firebase";
-import { doc, getDoc, onSnapshot, runTransaction, setDoc, updateDoc } from "firebase/firestore";
+import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
+import { auth, db } from "./firebase";
+import { doc, onSnapshot, runTransaction, updateDoc } from "firebase/firestore";
 import { defaultRoomState } from "./sync";
 
-const ROOM_ID = "gauthier-lea-2026-coeur"; // fixe = pas de code
+const ROOM_CODE_STORAGE_KEY = "avant-nous-room-code-v1";
+const ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 const LOVE_NOTES = [
   "Je fais semblant d’être sage… mais je pense à toi tout le temps 😇",
@@ -57,6 +59,32 @@ function pickDeterministic(list, seedStr) {
     h = Math.imul(h, 16777619);
   }
   return list[Math.abs(h) % list.length];
+}
+function normalizeRoomCode(value) {
+  return String(value || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 8);
+}
+function generateRoomCode(length = 8) {
+  let out = "";
+  for (let i = 0; i < length; i += 1) {
+    out += ROOM_CODE_ALPHABET[Math.floor(Math.random() * ROOM_CODE_ALPHABET.length)];
+  }
+  return out;
+}
+function readStoredRoomCode() {
+  if (typeof window === "undefined") return "";
+  return normalizeRoomCode(window.localStorage.getItem(ROOM_CODE_STORAGE_KEY) || "");
+}
+function persistRoomCode(code) {
+  if (typeof window === "undefined") return;
+  const normalized = normalizeRoomCode(code);
+  if (!normalized) {
+    window.localStorage.removeItem(ROOM_CODE_STORAGE_KEY);
+    return;
+  }
+  window.localStorage.setItem(ROOM_CODE_STORAGE_KEY, normalized);
 }
 
 function clampMin0(n) {
@@ -240,6 +268,9 @@ export default function App() {
   const [customMovieTitle, setCustomMovieTitle] = useState("");
   const [restStartInput, setRestStartInput] = useState("");
   const [restEndInput, setRestEndInput] = useState("");
+  const [roomCodeInput, setRoomCodeInput] = useState("");
+  const [roomBusy, setRoomBusy] = useState(false);
+  const [roomError, setRoomError] = useState("");
 
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -251,25 +282,53 @@ export default function App() {
   const untilMidnight = useMemo(() => msUntilMidnightLocal(now), [now]);
   const untilMidnightParts = useMemo(() => msToParts(untilMidnight), [untilMidnight]);
 
-  const roomRef = useMemo(() => doc(db, "rooms", ROOM_ID), []);
+  const [roomCode, setRoomCode] = useState(() => readStoredRoomCode());
+  const [authReady, setAuthReady] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authError, setAuthError] = useState("");
+
+  const roomRef = useMemo(() => (roomCode ? doc(db, "rooms", roomCode) : null), [roomCode]);
   const [shared, setShared] = useState(() => defaultRoomState());
   const [syncing, setSyncing] = useState(true);
   const [syncError, setSyncError] = useState("");
+  const isRoomMember = Boolean(currentUser && shared?.participants?.[currentUser.uid]);
 
   useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      setAuthReady(true);
+    });
+
+    if (!auth.currentUser) {
+      signInAnonymously(auth).catch((e) => {
+        setAuthError(String(e?.message || e));
+        setAuthReady(true);
+      });
+    } else {
+      setAuthReady(true);
+    }
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!roomRef || !roomCode || !currentUser) {
+      setShared(defaultRoomState());
+      setSyncing(false);
+      return;
+    }
+
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSyncError("");
     setSyncing(true);
 
     const unsub = onSnapshot(
       roomRef,
-      async (snap) => {
+      (snap) => {
         try {
           if (!snap.exists()) {
-            if (snap.metadata.fromCache) return;
-            const init = defaultRoomState();
-            await setDoc(roomRef, init);
-            setShared(init);
+            setShared(defaultRoomState());
+            setSyncError("Salon introuvable. Vérifie le code de salon.");
             setSyncing(false);
             return;
           }
@@ -287,29 +346,112 @@ export default function App() {
     );
 
     return () => unsub();
-  }, [roomRef]);
+  }, [currentUser, roomCode, roomRef]);
 
+  function activateRoom(nextCode) {
+    const normalized = normalizeRoomCode(nextCode);
+    if (!normalized) return;
+    setRoomCode(normalized);
+    persistRoomCode(normalized);
+    setRoomError("");
+  }
 
+  function clearActiveRoom() {
+    setRoomCode("");
+    persistRoomCode("");
+    setRoomCodeInput("");
+    setRoomError("");
+    setSyncError("");
+    setShared(defaultRoomState());
+  }
+
+  async function createPrivateRoom() {
+    if (!currentUser) return;
+    setRoomBusy(true);
+    setRoomError("");
+
+    try {
+      let createdCode = "";
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        const code = generateRoomCode();
+        const candidateRef = doc(db, "rooms", code);
+        try {
+          await runTransaction(db, async (tx) => {
+            const snap = await tx.get(candidateRef);
+            if (snap.exists()) throw new Error("ROOM_EXISTS");
+            const base = defaultRoomState();
+            tx.set(candidateRef, {
+              ...base,
+              joinCode: code,
+              ownerUid: currentUser.uid,
+              participants: { [currentUser.uid]: true },
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            });
+          });
+          createdCode = code;
+          break;
+        } catch (e) {
+          if (String(e?.message || e) !== "ROOM_EXISTS") throw e;
+        }
+      }
+
+      if (!createdCode) throw new Error("Impossible de créer un code unique. Réessaie.");
+      activateRoom(createdCode);
+    } catch (e) {
+      setRoomError(String(e?.message || e));
+    } finally {
+      setRoomBusy(false);
+    }
+  }
+
+  async function joinPrivateRoom() {
+    if (!currentUser) return;
+    const normalized = normalizeRoomCode(roomCodeInput);
+    if (!normalized) {
+      setRoomError("Entre un code de salon valide.");
+      return;
+    }
+
+    setRoomBusy(true);
+    setRoomError("");
+    try {
+      const joinRef = doc(db, "rooms", normalized);
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(joinRef);
+        if (!snap.exists()) throw new Error("ROOM_NOT_FOUND");
+        tx.update(joinRef, {
+          [`participants.${currentUser.uid}`]: true,
+          updatedAt: Date.now(),
+        });
+      });
+      activateRoom(normalized);
+      setRoomCodeInput("");
+    } catch (e) {
+      const message = String(e?.message || e);
+      if (message === "ROOM_NOT_FOUND") {
+        setRoomError("Salon introuvable. Vérifie le code.");
+      } else {
+        setRoomError(message);
+      }
+    } finally {
+      setRoomBusy(false);
+    }
+  }
 
   async function patchShared(patch) {
+    if (!roomRef || !isRoomMember) return;
     setShared((prev) => ({ ...prev, ...patch, updatedAt: Date.now() }));
 
     try {
       await updateDoc(roomRef, { ...patch, updatedAt: Date.now() });
     } catch (e) {
-      try {
-        const snap = await getDoc(roomRef);
-        if (!snap.exists()) {
-          await setDoc(roomRef, { ...defaultRoomState(), ...patch, updatedAt: Date.now() });
-        }
-      } catch {
-        // Ignore errors in fallback setDoc
-      }
       setSyncError(String(e?.message || e));
     }
   }
 
   async function updateRoomTransaction(updateFromBase) {
+    if (!roomRef || !isRoomMember) return;
     try {
       await runTransaction(db, async (tx) => {
         const snap = await tx.get(roomRef);
@@ -426,7 +568,7 @@ export default function App() {
   // Daily
   const alreadyUnlockedToday = shared.daily?.dateKey === todayKey;
   function unlockDaily() {
-    const seed = `${todayKey}|${shared.targetISO || "no-target"}|ROOM:${ROOM_ID}`;
+    const seed = `${todayKey}|${shared.targetISO || "no-target"}|ROOM:${roomCode || "no-room"}`;
     const love = pickDeterministic(LOVE_NOTES, seed + "|LOVE");
     const challenge = pickDeterministic(CHALLENGES, seed + "|CHALLENGE");
     patchShared({ daily: { dateKey: todayKey, love, challenge } });
@@ -614,6 +756,77 @@ export default function App() {
   const moviesDoneCount = shared.movies.filter((m) => m.done).length;
   const customMoviesDoneCount = shared.customMovies.filter((m) => m.done).length;
 
+  if (!authReady) {
+    return (
+      <div className="app">
+        <div className="shell">
+          <div className="card">
+            <div className="h1">Connexion…</div>
+            <p className="p">Ouverture sécurisée du salon.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (authError || !currentUser) {
+    return (
+      <div className="app">
+        <div className="shell">
+          <div className="card">
+            <div className="h1">Erreur d’authentification ⚠️</div>
+            <p className="p">{authError || "Impossible d’ouvrir la session."}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!roomCode) {
+    return (
+      <div className="app">
+        <div className="shell">
+          <div className="h1">Salon privé 🔐</div>
+          <p className="p">Crée un salon, puis partage le code à Gauthier/Léa pour vous connecter tous les deux.</p>
+
+          <div className="card">
+            <div className="sectionTitle">
+              <span>Nouveau salon</span>
+              <span className="badge">✨</span>
+            </div>
+            <button className="btn" onClick={createPrivateRoom} disabled={roomBusy}>
+              {roomBusy ? "Création…" : "Créer un salon privé"}
+            </button>
+
+            <div className="sep" />
+
+            <div className="sectionTitle">
+              <span>Rejoindre un salon</span>
+              <span className="badge">🔑</span>
+            </div>
+            <div className="label">Code du salon :</div>
+            <input
+              className="input"
+              value={roomCodeInput}
+              onChange={(e) => setRoomCodeInput(normalizeRoomCode(e.target.value))}
+              placeholder="Ex: A9F4K2QW"
+              onKeyDown={(e) => e.key === "Enter" && joinPrivateRoom()}
+            />
+            <button className="btn" onClick={joinPrivateRoom} disabled={roomBusy || !roomCodeInput.trim()}>
+              {roomBusy ? "Connexion…" : "Rejoindre ce salon"}
+            </button>
+
+            {roomError && (
+              <div className="small" style={{ marginTop: 10 }}>
+                ⚠️ {roomError}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       <div className="shell">
@@ -621,7 +834,24 @@ export default function App() {
           <div className="brand">
             <span className="badge">💞 Avant de te revoir</span>
           </div>
-          <span className="badge">📅 {todayKey}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span className="badge">🔐 {roomCode}</span>
+            <span className="badge">📅 {todayKey}</span>
+            <button
+              onClick={clearActiveRoom}
+              style={{
+                border: "1px solid rgba(90,42,74,.12)",
+                background: "rgba(255,255,255,.75)",
+                borderRadius: 999,
+                padding: "8px 12px",
+                fontSize: 12,
+                fontWeight: 800,
+                color: "rgba(90,42,74,.75)",
+              }}
+            >
+              Changer
+            </button>
+          </div>
         </div>
 
         <div className="small" style={{ marginBottom: 12 }}>
