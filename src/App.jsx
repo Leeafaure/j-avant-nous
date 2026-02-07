@@ -63,7 +63,19 @@ function pickDeterministic(list, seedStr) {
   return list[Math.abs(h) % list.length];
 }
 function normalizeRoomCode(value) {
-  return String(value || "")
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  // Legacy rooms can contain dashes (ex: gauthier-lea-2026-coeur)
+  if (raw.includes("-")) {
+    return raw
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "")
+      .slice(0, 64);
+  }
+
+  // Private room code format (new flow)
+  return raw
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "")
     .slice(0, 8);
