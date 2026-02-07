@@ -4,6 +4,7 @@ export function defaultRoomState() {
     updatedAt: Date.now(),
     daily: null,
     playlist: [],
+    gauthierRests: [],
 
     // événements calendrier
     events: [],
@@ -139,4 +140,3 @@ export function defaultRoomState() {
     },
   };
 }
-

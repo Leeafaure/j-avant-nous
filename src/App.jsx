@@ -104,6 +104,43 @@ function vibeLine(days) {
   if (days <= 30) return "Ça se rapproche. Et je souris bêtement.";
   return "On avance, un jour à la fois. Team nous 💪💖";
 }
+function parseDateKeyLocal(dateKey) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateKey || ""))) return null;
+  const [y, m, d] = String(dateKey).split("-").map(Number);
+  const parsed = new Date(y, (m || 1) - 1, d || 1, 12, 0, 0, 0);
+  if (
+    parsed.getFullYear() !== y ||
+    parsed.getMonth() !== (m || 1) - 1 ||
+    parsed.getDate() !== (d || 1)
+  ) {
+    return null;
+  }
+  return parsed;
+}
+function daysBetweenDateKeys(fromKey, toKey) {
+  const from = parseDateKeyLocal(fromKey);
+  const to = parseDateKeyLocal(toKey);
+  if (!from || !to) return null;
+  const oneDay = 1000 * 60 * 60 * 24;
+  return Math.round((to.getTime() - from.getTime()) / oneDay);
+}
+function formatDateKeyFr(dateKey) {
+  const parsed = parseDateKeyLocal(dateKey);
+  if (!parsed) return String(dateKey || "");
+  return parsed.toLocaleDateString("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+function relativeDaysLabel(days) {
+  if (days === null) return "";
+  if (days === 0) return "Aujourd’hui";
+  if (days === 1) return "Demain";
+  if (days < 0) return `Il y a ${Math.abs(days)} jour${Math.abs(days) > 1 ? "s" : ""}`;
+  return `Dans ${days} jours`;
+}
 
 function buildMapsLink({ city, placeName, address }) {
   const q = [placeName, address, city]
@@ -125,9 +162,10 @@ function fireConfetti(options) {
 }
 
 export default function App() {
-  const [tab, setTab] = useState("home"); // home | meet | playlist | todo | movies
+  const [tab, setTab] = useState("home"); // home | meet | playlist | rests | todo | movies
   const [editMeet, setEditMeet] = useState(false);
   const [customMovieTitle, setCustomMovieTitle] = useState("");
+  const [restDateInput, setRestDateInput] = useState("");
 
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -418,6 +456,53 @@ export default function App() {
     copy.sort((a, b) => (b.dateKey || "").localeCompare(a.dateKey || "") || (a.who || "").localeCompare(b.who || ""));
     return copy;
   }, [playlist]);
+
+  const gauthierRests = useMemo(() => {
+    const raw = Array.isArray(shared.gauthierRests) ? shared.gauthierRests : [];
+    const unique = Array.from(new Set(raw.filter((dateKey) => parseDateKeyLocal(dateKey))));
+    unique.sort((a, b) => a.localeCompare(b));
+    return unique;
+  }, [shared.gauthierRests]);
+
+  const upcomingRests = useMemo(
+    () => gauthierRests.filter((dateKey) => (daysBetweenDateKeys(todayKey, dateKey) ?? -1) >= 0),
+    [gauthierRests, todayKey]
+  );
+  const previousRests = useMemo(
+    () => gauthierRests.filter((dateKey) => (daysBetweenDateKeys(todayKey, dateKey) ?? 1) < 0),
+    [gauthierRests, todayKey]
+  );
+
+  const nextRestDate = upcomingRests[0] || "";
+  const nextRestInDays = nextRestDate ? daysBetweenDateKeys(todayKey, nextRestDate) : null;
+
+  function addGauthierRest() {
+    const dateKey = restDateInput.trim();
+    if (!parseDateKeyLocal(dateKey)) return;
+    if (gauthierRests.includes(dateKey)) {
+      setRestDateInput("");
+      return;
+    }
+
+    const next = [...gauthierRests, dateKey].sort((a, b) => a.localeCompare(b));
+    setShared((prev) => ({ ...prev, gauthierRests: next, updatedAt: Date.now() }));
+    updateRoomTransaction((base) => {
+      const baseRests = Array.isArray(base.gauthierRests) ? base.gauthierRests.filter((d) => parseDateKeyLocal(d)) : [];
+      if (baseRests.includes(dateKey)) return { gauthierRests: [...baseRests].sort((a, b) => a.localeCompare(b)) };
+      return { gauthierRests: [...baseRests, dateKey].sort((a, b) => a.localeCompare(b)) };
+    });
+
+    setRestDateInput("");
+    fireConfetti({ particleCount: 80, spread: 65, origin: { y: 0.72 } });
+  }
+
+  function removeGauthierRest(dateKey) {
+    const next = gauthierRests.filter((d) => d !== dateKey);
+    setShared((prev) => ({ ...prev, gauthierRests: next, updatedAt: Date.now() }));
+    updateRoomTransaction((base) => ({
+      gauthierRests: (Array.isArray(base.gauthierRests) ? base.gauthierRests : []).filter((d) => d !== dateKey),
+    }));
+  }
 
   return (
     <div className="app">
@@ -982,6 +1067,108 @@ export default function App() {
           </>
         )}
 
+        {/* REPOS */}
+        {tab === "rests" && (
+          <>
+            <div className="h1">Repos de Gauthier 🛌💙</div>
+            <p className="p">Ajoute les prochaines dates de repos pour les avoir sous la main.</p>
+
+            <div className="card">
+              <div className="sectionTitle">
+                <span>Ajouter une date</span>
+                <span className="badge">📅</span>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "end" }}>
+                <div>
+                  <div className="label">Date de repos :</div>
+                  <input
+                    className="input"
+                    type="date"
+                    value={restDateInput}
+                    onChange={(e) => setRestDateInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && addGauthierRest()}
+                  />
+                </div>
+                <button className="btn" style={{ marginTop: 0, width: "auto", padding: "12px 16px" }} onClick={addGauthierRest} disabled={!restDateInput.trim()}>
+                  Ajouter
+                </button>
+              </div>
+
+              <div className="sep" />
+
+              <div className="sectionTitle">
+                <span>Prochains repos</span>
+                <span className="badge">🗓️</span>
+              </div>
+
+              {upcomingRests.length === 0 ? (
+                <div className="small">Aucun prochain repos enregistré pour l’instant ✨</div>
+              ) : (
+                <div className="list">
+                  {upcomingRests.map((dateKey) => {
+                    const days = daysBetweenDateKeys(todayKey, dateKey);
+                    return (
+                      <div className="item" key={`upcoming-${dateKey}`}>
+                        <div className="itemTop">
+                          <div className="itemTitle">{formatDateKeyFr(dateKey)}</div>
+                          <div className="itemMeta">{relativeDaysLabel(days)}</div>
+                        </div>
+                        <button
+                          className="btn"
+                          style={{ marginTop: 10, padding: "10px 12px", fontSize: 14 }}
+                          onClick={() => removeGauthierRest(dateKey)}
+                        >
+                          Supprimer
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="small" style={{ marginTop: 14 }}>
+                {nextRestInDays === null
+                  ? "Ajoute une date pour afficher le prochain repos."
+                  : nextRestInDays === 0
+                    ? "Prochain repos : aujourd’hui 💙"
+                    : nextRestInDays === 1
+                      ? "Prochain repos : demain 💙"
+                      : `Prochain repos : dans ${nextRestInDays} jours 💙`}
+              </div>
+
+              {previousRests.length > 0 && (
+                <>
+                  <div className="sep" />
+                  <div className="sectionTitle">
+                    <span>Dates passées</span>
+                    <span className="badge">🕰️</span>
+                  </div>
+                  <div className="list">
+                    {previousRests.map((dateKey) => (
+                      <div className="item" key={`past-${dateKey}`}>
+                        <div className="itemTop">
+                          <div className="itemTitle">{formatDateKeyFr(dateKey)}</div>
+                          <div className="itemMeta">{relativeDaysLabel(daysBetweenDateKeys(todayKey, dateKey))}</div>
+                        </div>
+                        <button
+                          className="btn"
+                          style={{ marginTop: 10, padding: "10px 12px", fontSize: 14 }}
+                          onClick={() => removeGauthierRest(dateKey)}
+                        >
+                          Supprimer
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              <div className="heart">🩵</div>
+            </div>
+          </>
+        )}
+
         {/* TODO */}
         {tab === "todo" && (
           <>
@@ -1150,6 +1337,10 @@ export default function App() {
             <button className={`tabbtn ${tab === "playlist" ? "tabbtnActive" : ""}`} onClick={() => setTab("playlist")}>
               <div className="tabicon">🎧</div>
               Playlist
+            </button>
+            <button className={`tabbtn ${tab === "rests" ? "tabbtnActive" : ""}`} onClick={() => setTab("rests")}>
+              <div className="tabicon">🛌</div>
+              Repos
             </button>
             <button className={`tabbtn ${tab === "todo" ? "tabbtnActive" : ""}`} onClick={() => setTab("todo")}>
               <div className="tabicon">✅</div>
