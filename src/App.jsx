@@ -902,31 +902,26 @@ export default function App() {
     <div className="app">
       <div className="shell">
         <div className="topbar">
-          <div className="brand">
-            <span className="badge">💞 Avant de te revoir</span>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span className="badge">🔐 {roomCode}</span>
-            <span className="badge">📅 {todayKey}</span>
-            <button
-              onClick={clearActiveRoom}
-              style={{
-                border: "1px solid rgba(90,42,74,.12)",
-                background: "rgba(255,255,255,.75)",
-                borderRadius: 999,
-                padding: "8px 12px",
-                fontSize: 12,
-                fontWeight: 800,
-                color: "rgba(90,42,74,.75)",
-              }}
-            >
-              Changer
-            </button>
-          </div>
-        </div>
+          <div className="topbarCard">
+            <div className="topbarRow">
+              <span className="badge">💞 Avant de te revoir</span>
+              <span className="badge">📅 {todayKey}</span>
+            </div>
 
-        <div className="small" style={{ marginBottom: 12 }}>
-          {syncing ? "Synchronisation…" : syncError ? `⚠️ ${syncError}` : "✅ Synchronisé"}
+            <div className="topbarRow">
+              <div className="roomPill">
+                <span className="roomPillLabel">Salon</span>
+                <span className="roomPillValue">{roomCode}</span>
+              </div>
+              <button className="topbarChangeBtn" onClick={clearActiveRoom}>
+                Changer
+              </button>
+            </div>
+
+            <div className={`syncPill ${syncError ? "syncPillError" : syncing ? "syncPillSyncing" : "syncPillOk"}`}>
+              {syncing ? "Synchronisation…" : syncError ? `⚠️ ${syncError}` : "✅ Synchronisé"}
+            </div>
+          </div>
         </div>
 
         {/* HOME */}

@@ -23,7 +23,66 @@ a{ color: rgba(140,60,110,.95); text-decoration:none; }
   width:100%; max-width:430px; padding:22px 16px;
   padding-bottom: calc(var(--tabH) + 22px + env(safe-area-inset-bottom));
 }
-.topbar{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
+.topbar{ margin-bottom:12px; }
+.topbarCard{
+  background: rgba(255,255,255,.78);
+  border:1px solid var(--stroke);
+  border-radius:20px;
+  padding:10px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.08);
+  backdrop-filter: blur(8px);
+}
+.topbarRow{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+}
+.topbarRow + .topbarRow{ margin-top:8px; }
+.roomPill{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+  padding:8px 12px;
+  border-radius:14px;
+  background: rgba(255,255,255,.88);
+  border:1px solid var(--stroke);
+}
+.roomPillLabel{
+  font-size:10px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:rgba(90,42,74,.58);
+  font-weight:900;
+}
+.roomPillValue{
+  font-size:13px;
+  font-weight:900;
+  color:var(--text);
+  word-break:break-all;
+}
+.topbarChangeBtn{
+  border:1px solid rgba(90,42,74,.14);
+  background: rgba(255,255,255,.9);
+  border-radius:999px;
+  padding:8px 12px;
+  font-size:12px;
+  font-weight:900;
+  color:rgba(90,42,74,.78);
+  white-space:nowrap;
+}
+.syncPill{
+  margin-top:8px;
+  padding:8px 10px;
+  border-radius:12px;
+  font-size:12px;
+  font-weight:800;
+  line-height:1.2;
+}
+.syncPillSyncing{ background: rgba(245, 231, 183, .55); color: rgba(125,91,17,.85); }
+.syncPillOk{ background: rgba(198, 244, 211, .65); color: rgba(21, 91, 47, .85); }
+.syncPillError{ background: rgba(255, 219, 219, .75); color: rgba(142, 34, 34, .9); }
 .badge{
   display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:999px;
   background: rgba(255,255,255,.75); border:1px solid var(--stroke); box-shadow:0 10px 24px rgba(0,0,0,.06);
