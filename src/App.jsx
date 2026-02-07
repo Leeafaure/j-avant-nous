@@ -162,7 +162,8 @@ function fireConfetti(options) {
 }
 
 export default function App() {
-  const [tab, setTab] = useState("home"); // home | meet | playlist | rests | todo | movies
+  const [tab, setTab] = useState("home"); // home | meet | playlist | rests | activities
+  const [activitiesSubTab, setActivitiesSubTab] = useState("todo"); // todo | movies
   const [editMeet, setEditMeet] = useState(false);
   const [customMovieTitle, setCustomMovieTitle] = useState("");
   const [restDateInput, setRestDateInput] = useState("");
@@ -503,6 +504,10 @@ export default function App() {
       gauthierRests: (Array.isArray(base.gauthierRests) ? base.gauthierRests : []).filter((d) => d !== dateKey),
     }));
   }
+
+  const todoDoneCount = shared.todo.filter((t) => t.done).length;
+  const moviesDoneCount = shared.movies.filter((m) => m.done).length;
+  const customMoviesDoneCount = shared.customMovies.filter((m) => m.done).length;
 
   return (
     <div className="app">
@@ -1169,156 +1174,167 @@ export default function App() {
           </>
         )}
 
-        {/* TODO */}
-        {tab === "todo" && (
+        {/* ACTIVITIES */}
+        {tab === "activities" && (
           <>
-            <div className="h1">Notre to-do list ✅💕</div>
-            <p className="p">50 choses à faire ensemble — cochez quand c'est fait !</p>
+            <div className="h1">Nos activités ✅🎬</div>
+            <p className="p">Un seul onglet pour la to-do et les films, avec deux sous-onglets.</p>
 
             <div className="card">
-              <div className="sectionTitle">
-                <span>Activités à faire</span>
-                <span className="badge">🎯</span>
+              <div className="subtabs">
+                <button
+                  className={`subtabBtn ${activitiesSubTab === "todo" ? "subtabBtnActive" : ""}`}
+                  onClick={() => setActivitiesSubTab("todo")}
+                >
+                  ✅ To-Do ({todoDoneCount}/{shared.todo.length})
+                </button>
+                <button
+                  className={`subtabBtn ${activitiesSubTab === "movies" ? "subtabBtnActive" : ""}`}
+                  onClick={() => setActivitiesSubTab("movies")}
+                >
+                  🎥 Films ({moviesDoneCount}/{shared.movies.length})
+                </button>
               </div>
 
-              <div className="list">
-                {shared.todo.map((item, index) => (
-                  <div className="item" key={index}>
-                    <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
-                      <input
-                        type="checkbox"
-                        checked={item.done}
-                        onChange={() => {
-                          const newDone = !item.done;
-                          if (newDone) fireConfetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-                          const newTodo = [...shared.todo];
-                          newTodo[index] = { ...item, done: newDone };
-                          patchShared({ todo: newTodo });
-                        }}
-                        style={{ marginRight: 10 }}
-                      />
-                      <span style={{ textDecoration: item.done ? "line-through" : "none", opacity: item.done ? 0.6 : 1 }}>
-                        {item.text}
-                      </span>
-                    </label>
-                  </div>
-                ))}
-              </div>
-
-              <div className="small" style={{ marginTop: 20 }}>
-                {shared.todo.filter(t => t.done).length} / {shared.todo.length} activités complétées 💖
-              </div>
-
-              <div className="heart">🌸</div>
-            </div>
-          </>
-        )}
-
-        {/* MOVIES */}
-        {tab === "movies" && (
-          <>
-            <div className="h1">🎥 Films à voir ensemble</div>
-            <p className="p">Les meilleurs films du cinéma — cochez quand vous les avez vus !</p>
-
-            <div className="card">
-              <div className="sectionTitle">
-                <span>Films suggérés</span>
-                <span className="badge">🍿</span>
-              </div>
-
-              <div className="list">
-                {shared.movies.map((movie, index) => (
-                  <div className="item" key={index}>
-                    <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
-                      <input
-                        type="checkbox"
-                        checked={movie.done}
-                        onChange={() => {
-                          const newDone = !movie.done;
-                          if (newDone) fireConfetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-                          const newMovies = [...shared.movies];
-                          newMovies[index] = { ...movie, done: newDone };
-                          patchShared({ movies: newMovies });
-                        }}
-                        style={{ marginRight: 10 }}
-                      />
-                      <span style={{ textDecoration: movie.done ? "line-through" : "none", opacity: movie.done ? 0.6 : 1 }}>
-                        {movie.title}
-                      </span>
-                    </label>
-                  </div>
-                ))}
-              </div>
-
-              <div className="small" style={{ marginTop: 20 }}>
-                {shared.movies.filter(m => m.done).length} / {shared.movies.length} films suggérés vus 💕
-              </div>
-
-              <div className="sep" />
-
-              <div className="sectionTitle">
-                <span>Ajouter un film personnalisé</span>
-                <span className="badge">➕</span>
-              </div>
-
-              <div className="row">
-                <div style={{ flex: 1 }}>
-                  <div className="label">Titre du film :</div>
-                  <input
-                    className="input"
-                    value={customMovieTitle}
-                    onChange={(e) => setCustomMovieTitle(e.target.value)}
-                    placeholder="Ex: La La Land"
-                    onKeyDown={(e) => e.key === "Enter" && addCustomMovie()}
-                  />
-                </div>
-              </div>
-
-              <button className="btn" onClick={addCustomMovie} disabled={!customMovieTitle.trim()}>
-                Ajouter ce film ✨
-              </button>
-
-              {shared.customMovies.length > 0 && (
+              {activitiesSubTab === "todo" && (
                 <>
-                  <div className="sep" />
-
-                  <div className="sectionTitle">
-                    <span>Vos films personnalisés</span>
-                    <span className="badge">❤️</span>
+                  <div className="sectionTitle" style={{ marginTop: 12 }}>
+                    <span>Activités à faire</span>
+                    <span className="badge">🎯</span>
                   </div>
 
                   <div className="list">
-                    {shared.customMovies.map((movie, index) => (
+                    {shared.todo.map((item, index) => (
                       <div className="item" key={index}>
-                        <label style={{ display: "flex", alignItems: "center", cursor: "pointer", flex: 1 }}>
+                        <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
                           <input
                             type="checkbox"
-                            checked={movie.done}
-                            onChange={() => toggleCustomMovie(index)}
+                            checked={item.done}
+                            onChange={() => {
+                              const newDone = !item.done;
+                              if (newDone) fireConfetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+                              const newTodo = [...shared.todo];
+                              newTodo[index] = { ...item, done: newDone };
+                              patchShared({ todo: newTodo });
+                            }}
                             style={{ marginRight: 10 }}
                           />
-                          <span style={{ textDecoration: movie.done ? "line-through" : "none", opacity: movie.done ? 0.6 : 1, flex: 1 }}>
-                            {movie.title}
+                          <span style={{ textDecoration: item.done ? "line-through" : "none", opacity: item.done ? 0.6 : 1 }}>
+                            {item.text}
                           </span>
                         </label>
-                        <button
-                          className="btn"
-                          style={{ marginLeft: 10, padding: "8px 12px", fontSize: 12, background: "rgba(239,68,68,0.1)", color: "#ef4444" }}
-                          onClick={() => removeCustomMovie(index)}
-                        >
-                          🗑️
-                        </button>
                       </div>
                     ))}
                   </div>
 
                   <div className="small" style={{ marginTop: 20 }}>
-                    {shared.customMovies.filter(m => m.done).length} / {shared.customMovies.length} films personnalisés vus 💕
+                    {todoDoneCount} / {shared.todo.length} activités complétées 💖
                   </div>
+
+                  <div className="heart">🌸</div>
                 </>
               )}
 
-              <div className="heart">🎬</div>
+              {activitiesSubTab === "movies" && (
+                <>
+                  <div className="sectionTitle" style={{ marginTop: 12 }}>
+                    <span>Films suggérés</span>
+                    <span className="badge">🍿</span>
+                  </div>
+
+                  <div className="list">
+                    {shared.movies.map((movie, index) => (
+                      <div className="item" key={index}>
+                        <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+                          <input
+                            type="checkbox"
+                            checked={movie.done}
+                            onChange={() => {
+                              const newDone = !movie.done;
+                              if (newDone) fireConfetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+                              const newMovies = [...shared.movies];
+                              newMovies[index] = { ...movie, done: newDone };
+                              patchShared({ movies: newMovies });
+                            }}
+                            style={{ marginRight: 10 }}
+                          />
+                          <span style={{ textDecoration: movie.done ? "line-through" : "none", opacity: movie.done ? 0.6 : 1 }}>
+                            {movie.title}
+                          </span>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="small" style={{ marginTop: 20 }}>
+                    {moviesDoneCount} / {shared.movies.length} films suggérés vus 💕
+                  </div>
+
+                  <div className="sep" />
+
+                  <div className="sectionTitle">
+                    <span>Ajouter un film personnalisé</span>
+                    <span className="badge">➕</span>
+                  </div>
+
+                  <div>
+                    <div className="label">Titre du film :</div>
+                    <input
+                      className="input"
+                      value={customMovieTitle}
+                      onChange={(e) => setCustomMovieTitle(e.target.value)}
+                      placeholder="Ex: La La Land"
+                      onKeyDown={(e) => e.key === "Enter" && addCustomMovie()}
+                    />
+                  </div>
+
+                  <button className="btn" onClick={addCustomMovie} disabled={!customMovieTitle.trim()}>
+                    Ajouter ce film ✨
+                  </button>
+
+                  {shared.customMovies.length > 0 && (
+                    <>
+                      <div className="sep" />
+
+                      <div className="sectionTitle">
+                        <span>Vos films personnalisés</span>
+                        <span className="badge">❤️</span>
+                      </div>
+
+                      <div className="list">
+                        {shared.customMovies.map((movie, index) => (
+                          <div className="item" key={index}>
+                            <label style={{ display: "flex", alignItems: "center", cursor: "pointer", flex: 1 }}>
+                              <input
+                                type="checkbox"
+                                checked={movie.done}
+                                onChange={() => toggleCustomMovie(index)}
+                                style={{ marginRight: 10 }}
+                              />
+                              <span style={{ textDecoration: movie.done ? "line-through" : "none", opacity: movie.done ? 0.6 : 1, flex: 1 }}>
+                                {movie.title}
+                              </span>
+                            </label>
+                            <button
+                              className="btn"
+                              style={{ marginLeft: 10, padding: "8px 12px", fontSize: 12, background: "rgba(239,68,68,0.1)", color: "#ef4444" }}
+                              onClick={() => removeCustomMovie(index)}
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="small" style={{ marginTop: 20 }}>
+                        {customMoviesDoneCount} / {shared.customMovies.length} films personnalisés vus 💕
+                      </div>
+                    </>
+                  )}
+
+                  <div className="heart">🎬</div>
+                </>
+              )}
             </div>
           </>
         )}
@@ -1342,13 +1358,9 @@ export default function App() {
               <div className="tabicon">🛌</div>
               Repos
             </button>
-            <button className={`tabbtn ${tab === "todo" ? "tabbtnActive" : ""}`} onClick={() => setTab("todo")}>
+            <button className={`tabbtn ${tab === "activities" ? "tabbtnActive" : ""}`} onClick={() => setTab("activities")}>
               <div className="tabicon">✅</div>
-              To-Do
-            </button>
-            <button className={`tabbtn ${tab === "movies" ? "tabbtnActive" : ""}`} onClick={() => setTab("movies")}>
-              <div className="tabicon">🎥</div>
-              Films
+              Activités
             </button>
           </div>
         </div>
