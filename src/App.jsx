@@ -141,6 +141,78 @@ function relativeDaysLabel(days) {
   if (days < 0) return `Il y a ${Math.abs(days)} jour${Math.abs(days) > 1 ? "s" : ""}`;
   return `Dans ${days} jours`;
 }
+function normalizeRestRanges(rawRanges, legacyDates) {
+  const next = [];
+  const seen = new Set();
+
+  const pushRange = (startKey, endKey) => {
+    if (!parseDateKeyLocal(startKey) || !parseDateKeyLocal(endKey)) return;
+    let start = String(startKey);
+    let end = String(endKey);
+    if (end < start) {
+      const swap = start;
+      start = end;
+      end = swap;
+    }
+    const key = `${start}|${end}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    next.push({ start, end });
+  };
+
+  const ranges = Array.isArray(rawRanges) ? rawRanges : [];
+  for (const range of ranges) {
+    if (typeof range === "string") {
+      pushRange(range, range);
+      continue;
+    }
+    if (!range || typeof range !== "object") continue;
+    const start = range.start ?? range.from ?? range.startDate ?? "";
+    const end = range.end ?? range.to ?? range.endDate ?? "";
+    pushRange(start, end || start);
+  }
+
+  const dates = Array.isArray(legacyDates) ? legacyDates : [];
+  for (const dateKey of dates) pushRange(dateKey, dateKey);
+
+  next.sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end));
+  return next;
+}
+function formatRestRange(range) {
+  if (!range) return "";
+  if (range.start === range.end) return formatDateKeyFr(range.start);
+  return `${formatDateKeyFr(range.start)} → ${formatDateKeyFr(range.end)}`;
+}
+function restRangeLength(range) {
+  const diff = daysBetweenDateKeys(range?.start, range?.end);
+  if (diff === null) return 0;
+  return diff + 1;
+}
+function restRangeMeta(range, todayKey) {
+  const fromDiff = daysBetweenDateKeys(todayKey, range?.start);
+  const toDiff = daysBetweenDateKeys(todayKey, range?.end);
+  if (fromDiff === null || toDiff === null) return "";
+  if (toDiff < 0) return `Terminé ${relativeDaysLabel(toDiff).toLowerCase()}`;
+  if (fromDiff > 0) return `Début ${relativeDaysLabel(fromDiff).toLowerCase()}`;
+  if (fromDiff === 0 && toDiff === 0) return "Aujourd’hui";
+  if (fromDiff === 0) return "Débute aujourd’hui";
+  if (toDiff === 0) return "Dernier jour";
+  return "En cours";
+}
+function restRangeSummary(range, todayKey) {
+  if (!range) return "Ajoute une plage pour afficher le prochain repos.";
+  const fromDiff = daysBetweenDateKeys(todayKey, range.start);
+  const toDiff = daysBetweenDateKeys(todayKey, range.end);
+  if (fromDiff === null || toDiff === null) return "Ajoute une plage pour afficher le prochain repos.";
+  if (toDiff < 0) return "Ajoute une plage pour afficher le prochain repos.";
+  if (fromDiff > 1) return `Prochain repos : dans ${fromDiff} jours 💙`;
+  if (fromDiff === 1) return "Prochain repos : demain 💙";
+  if (fromDiff === 0 && toDiff === 0) return "Prochain repos : aujourd’hui 💙";
+  return "Repos en cours 💙";
+}
+function toLegacyRestDates(ranges) {
+  return ranges.filter((range) => range.start === range.end).map((range) => range.start);
+}
 
 function buildMapsLink({ city, placeName, address }) {
   const q = [placeName, address, city]
@@ -166,7 +238,8 @@ export default function App() {
   const [activitiesSubTab, setActivitiesSubTab] = useState("todo"); // todo | movies
   const [editMeet, setEditMeet] = useState(false);
   const [customMovieTitle, setCustomMovieTitle] = useState("");
-  const [restDateInput, setRestDateInput] = useState("");
+  const [restStartInput, setRestStartInput] = useState("");
+  const [restEndInput, setRestEndInput] = useState("");
 
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -458,51 +531,83 @@ export default function App() {
     return copy;
   }, [playlist]);
 
-  const gauthierRests = useMemo(() => {
-    const raw = Array.isArray(shared.gauthierRests) ? shared.gauthierRests : [];
-    const unique = Array.from(new Set(raw.filter((dateKey) => parseDateKeyLocal(dateKey))));
-    unique.sort((a, b) => a.localeCompare(b));
-    return unique;
-  }, [shared.gauthierRests]);
-
-  const upcomingRests = useMemo(
-    () => gauthierRests.filter((dateKey) => (daysBetweenDateKeys(todayKey, dateKey) ?? -1) >= 0),
-    [gauthierRests, todayKey]
-  );
-  const previousRests = useMemo(
-    () => gauthierRests.filter((dateKey) => (daysBetweenDateKeys(todayKey, dateKey) ?? 1) < 0),
-    [gauthierRests, todayKey]
+  const gauthierRestRanges = useMemo(
+    () => normalizeRestRanges(shared.gauthierRestRanges, shared.gauthierRests),
+    [shared.gauthierRestRanges, shared.gauthierRests]
   );
 
-  const nextRestDate = upcomingRests[0] || "";
-  const nextRestInDays = nextRestDate ? daysBetweenDateKeys(todayKey, nextRestDate) : null;
+  const upcomingRestRanges = useMemo(
+    () => gauthierRestRanges.filter((range) => range.end >= todayKey),
+    [gauthierRestRanges, todayKey]
+  );
+  const previousRestRanges = useMemo(
+    () => gauthierRestRanges.filter((range) => range.end < todayKey),
+    [gauthierRestRanges, todayKey]
+  );
 
-  function addGauthierRest() {
-    const dateKey = restDateInput.trim();
-    if (!parseDateKeyLocal(dateKey)) return;
-    if (gauthierRests.includes(dateKey)) {
-      setRestDateInput("");
+  const nextRestRange = upcomingRestRanges[0] || null;
+  const restRangeInvalid = Boolean(restStartInput && restEndInput && restEndInput < restStartInput);
+
+  function addGauthierRestRange() {
+    const start = restStartInput.trim();
+    const end = restEndInput.trim();
+    const normalizedInput = normalizeRestRanges([{ start, end }], []);
+    const range = normalizedInput[0];
+    if (!range) return;
+
+    const rangeKey = `${range.start}|${range.end}`;
+    if (gauthierRestRanges.some((item) => `${item.start}|${item.end}` === rangeKey)) {
+      setRestStartInput("");
+      setRestEndInput("");
       return;
     }
 
-    const next = [...gauthierRests, dateKey].sort((a, b) => a.localeCompare(b));
-    setShared((prev) => ({ ...prev, gauthierRests: next, updatedAt: Date.now() }));
+    const nextRanges = normalizeRestRanges([...gauthierRestRanges, range], []);
+    const nextLegacyDates = toLegacyRestDates(nextRanges);
+    setShared((prev) => ({
+      ...prev,
+      gauthierRestRanges: nextRanges,
+      gauthierRests: nextLegacyDates,
+      updatedAt: Date.now(),
+    }));
     updateRoomTransaction((base) => {
-      const baseRests = Array.isArray(base.gauthierRests) ? base.gauthierRests.filter((d) => parseDateKeyLocal(d)) : [];
-      if (baseRests.includes(dateKey)) return { gauthierRests: [...baseRests].sort((a, b) => a.localeCompare(b)) };
-      return { gauthierRests: [...baseRests, dateKey].sort((a, b) => a.localeCompare(b)) };
+      const baseRanges = normalizeRestRanges(base.gauthierRestRanges, base.gauthierRests);
+      if (baseRanges.some((item) => `${item.start}|${item.end}` === rangeKey)) {
+        return {
+          gauthierRestRanges: baseRanges,
+          gauthierRests: toLegacyRestDates(baseRanges),
+        };
+      }
+
+      const txNextRanges = normalizeRestRanges([...baseRanges, range], []);
+      return {
+        gauthierRestRanges: txNextRanges,
+        gauthierRests: toLegacyRestDates(txNextRanges),
+      };
     });
 
-    setRestDateInput("");
+    setRestStartInput("");
+    setRestEndInput("");
     fireConfetti({ particleCount: 80, spread: 65, origin: { y: 0.72 } });
   }
 
-  function removeGauthierRest(dateKey) {
-    const next = gauthierRests.filter((d) => d !== dateKey);
-    setShared((prev) => ({ ...prev, gauthierRests: next, updatedAt: Date.now() }));
-    updateRoomTransaction((base) => ({
-      gauthierRests: (Array.isArray(base.gauthierRests) ? base.gauthierRests : []).filter((d) => d !== dateKey),
+  function removeGauthierRestRange(rangeKey) {
+    const nextRanges = gauthierRestRanges.filter((range) => `${range.start}|${range.end}` !== rangeKey);
+    const normalized = normalizeRestRanges(nextRanges, []);
+    setShared((prev) => ({
+      ...prev,
+      gauthierRestRanges: normalized,
+      gauthierRests: toLegacyRestDates(normalized),
+      updatedAt: Date.now(),
     }));
+    updateRoomTransaction((base) => {
+      const baseRanges = normalizeRestRanges(base.gauthierRestRanges, base.gauthierRests);
+      const txNextRanges = baseRanges.filter((range) => `${range.start}|${range.end}` !== rangeKey);
+      return {
+        gauthierRestRanges: txNextRanges,
+        gauthierRests: toLegacyRestDates(txNextRanges),
+      };
+    });
   }
 
   const todoDoneCount = shared.todo.filter((t) => t.done).length;
@@ -1076,29 +1181,49 @@ export default function App() {
         {tab === "rests" && (
           <>
             <div className="h1">Repos de Gauthier 🛌💙</div>
-            <p className="p">Ajoute les prochaines dates de repos pour les avoir sous la main.</p>
+            <p className="p">Ajoute des plages de repos (du / au) pour garder le planning clair.</p>
 
             <div className="card">
               <div className="sectionTitle">
-                <span>Ajouter une date</span>
+                <span>Ajouter une plage</span>
                 <span className="badge">📅</span>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "end" }}>
+              <div className="grid2" style={{ marginTop: 0 }}>
                 <div>
-                  <div className="label">Date de repos :</div>
+                  <div className="label">Du :</div>
                   <input
                     className="input"
                     type="date"
-                    value={restDateInput}
-                    onChange={(e) => setRestDateInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && addGauthierRest()}
+                    value={restStartInput}
+                    onChange={(e) => setRestStartInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && addGauthierRestRange()}
                   />
                 </div>
-                <button className="btn" style={{ marginTop: 0, width: "auto", padding: "12px 16px" }} onClick={addGauthierRest} disabled={!restDateInput.trim()}>
-                  Ajouter
-                </button>
+                <div>
+                  <div className="label">Au :</div>
+                  <input
+                    className="input"
+                    type="date"
+                    value={restEndInput}
+                    onChange={(e) => setRestEndInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && addGauthierRestRange()}
+                  />
+                </div>
               </div>
+              {restRangeInvalid && (
+                <div className="small" style={{ marginTop: 8 }}>
+                  La date de fin doit être identique ou après la date de début.
+                </div>
+              )}
+
+              <button
+                className="btn"
+                onClick={addGauthierRestRange}
+                disabled={!restStartInput.trim() || !restEndInput.trim() || restRangeInvalid}
+              >
+                Ajouter la plage
+              </button>
 
               <div className="sep" />
 
@@ -1107,22 +1232,24 @@ export default function App() {
                 <span className="badge">🗓️</span>
               </div>
 
-              {upcomingRests.length === 0 ? (
+              {upcomingRestRanges.length === 0 ? (
                 <div className="small">Aucun prochain repos enregistré pour l’instant ✨</div>
               ) : (
                 <div className="list">
-                  {upcomingRests.map((dateKey) => {
-                    const days = daysBetweenDateKeys(todayKey, dateKey);
+                  {upcomingRestRanges.map((range) => {
+                    const rangeKey = `${range.start}|${range.end}`;
+                    const length = restRangeLength(range);
                     return (
-                      <div className="item" key={`upcoming-${dateKey}`}>
+                      <div className="item" key={`upcoming-${rangeKey}`}>
                         <div className="itemTop">
-                          <div className="itemTitle">{formatDateKeyFr(dateKey)}</div>
-                          <div className="itemMeta">{relativeDaysLabel(days)}</div>
+                          <div className="itemTitle">{formatRestRange(range)}</div>
+                          <div className="itemMeta">{restRangeMeta(range, todayKey)}</div>
                         </div>
+                        <div className="sub">{length > 1 ? `${length} jours de repos` : "1 jour de repos"}</div>
                         <button
                           className="btn"
                           style={{ marginTop: 10, padding: "10px 12px", fontSize: 14 }}
-                          onClick={() => removeGauthierRest(dateKey)}
+                          onClick={() => removeGauthierRestRange(rangeKey)}
                         >
                           Supprimer
                         </button>
@@ -1133,16 +1260,10 @@ export default function App() {
               )}
 
               <div className="small" style={{ marginTop: 14 }}>
-                {nextRestInDays === null
-                  ? "Ajoute une date pour afficher le prochain repos."
-                  : nextRestInDays === 0
-                    ? "Prochain repos : aujourd’hui 💙"
-                    : nextRestInDays === 1
-                      ? "Prochain repos : demain 💙"
-                      : `Prochain repos : dans ${nextRestInDays} jours 💙`}
+                {restRangeSummary(nextRestRange, todayKey)}
               </div>
 
-              {previousRests.length > 0 && (
+              {previousRestRanges.length > 0 && (
                 <>
                   <div className="sep" />
                   <div className="sectionTitle">
@@ -1150,21 +1271,26 @@ export default function App() {
                     <span className="badge">🕰️</span>
                   </div>
                   <div className="list">
-                    {previousRests.map((dateKey) => (
-                      <div className="item" key={`past-${dateKey}`}>
+                    {[...previousRestRanges].reverse().map((range) => {
+                      const rangeKey = `${range.start}|${range.end}`;
+                      const length = restRangeLength(range);
+                      return (
+                      <div className="item" key={`past-${rangeKey}`}>
                         <div className="itemTop">
-                          <div className="itemTitle">{formatDateKeyFr(dateKey)}</div>
-                          <div className="itemMeta">{relativeDaysLabel(daysBetweenDateKeys(todayKey, dateKey))}</div>
+                          <div className="itemTitle">{formatRestRange(range)}</div>
+                          <div className="itemMeta">{restRangeMeta(range, todayKey)}</div>
                         </div>
+                        <div className="sub">{length > 1 ? `${length} jours de repos` : "1 jour de repos"}</div>
                         <button
                           className="btn"
                           style={{ marginTop: 10, padding: "10px 12px", fontSize: 14 }}
-                          onClick={() => removeGauthierRest(dateKey)}
+                          onClick={() => removeGauthierRestRange(rangeKey)}
                         >
                           Supprimer
                         </button>
                       </div>
-                    ))}
+                    );
+                    })}
                   </div>
                 </>
               )}

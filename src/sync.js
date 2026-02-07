@@ -5,6 +5,7 @@ export function defaultRoomState() {
     daily: null,
     playlist: [],
     gauthierRests: [],
+    gauthierRestRanges: [],
 
     // événements calendrier
     events: [],
