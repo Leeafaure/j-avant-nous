@@ -210,6 +210,7 @@ a{ color: rgba(140,60,110,.95); text-decoration:none; }
 .tileValue{ margin-top:6px; font-size:22px; font-weight:900; font-variant-numeric: tabular-nums; }
 
 .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
+.row{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
 .panel{ background: rgba(255,247,251,1); border:1px solid rgba(244,220,232,1); border-radius: var(--radius2); padding:12px; }
 .panelTitle{ font-size:11px; letter-spacing:.14em; text-transform:uppercase; color: rgba(209,88,141,.80); font-weight:900; }
 .panelTitle.blue{ color: rgba(70,140,210,.75); }
@@ -299,6 +300,41 @@ canvas{ pointer-events:none !important; }
 }
 .appValentine .subtabBtnActive{
   background: linear-gradient(100deg, rgba(255,210,223,.85), rgba(255,219,165,.8));
+}
+
+@media (max-width: 410px) {
+  .shell{
+    padding:18px 12px;
+    padding-bottom: calc(var(--tabH) + 18px + env(safe-area-inset-bottom));
+  }
+  .h1{ font-size:24px; }
+  .card{ padding:16px 14px; }
+  .badge{ font-size:11px; padding:7px 10px; }
+  .topbarMenuBtn{ font-size:11px; padding:7px 10px; }
+  .tabbar{ gap:6px; padding:8px; }
+  .tabbtn{ font-size:11px; padding:9px 4px; }
+  .tabicon{ font-size:15px; }
+}
+
+@media (max-width: 360px) {
+  .grid2,
+  .row,
+  .subtabs{
+    grid-template-columns:1fr;
+  }
+  .topMenuRow{
+    flex-direction:column;
+    align-items:stretch;
+  }
+  .roomPill{
+    width:100%;
+    justify-content:space-between;
+  }
+  .timerRow{ gap:8px; }
+  .tileValue{ font-size:20px; }
+  .tabs{
+    padding:8px 8px calc(8px + env(safe-area-inset-bottom));
+  }
 }
 
 /* Calendar styles */
