@@ -4,6 +4,7 @@ export function defaultRoomState() {
     updatedAt: Date.now(),
     daily: null,
     dailyQuiz: null,
+    valentineCoupleQuiz: null,
     playlist: [],
     gauthierRests: [],
     gauthierRestRanges: [],

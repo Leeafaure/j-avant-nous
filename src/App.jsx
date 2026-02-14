@@ -29,6 +29,19 @@ const VALENTINE_TAB_ICONS = {
   activities: "🎁",
 };
 
+const VALENTINE_COUPLE_QUESTIONS = [
+  { id: "first-memory", prompt: "Quel est ton premier souvenir marquant de nous deux ?" },
+  { id: "favorite-quality", prompt: "Quelle qualité de l’autre te fait le plus craquer ?" },
+  { id: "comfort-gesture", prompt: "Quel petit geste te fait te sentir aimé(e) par l’autre ?" },
+  { id: "dream-trip", prompt: "Si on partait demain, quelle destination choisirais-tu pour nous ?" },
+  { id: "song-us", prompt: "Quelle chanson te fait le plus penser à notre couple ?" },
+  { id: "favorite-routine", prompt: "Quel moment simple de notre quotidien préfères-tu ?" },
+  { id: "love-language", prompt: "Comment préfères-tu qu’on se montre notre amour ?" },
+  { id: "couple-challenge", prompt: "Quel défi de couple aimerais-tu qu’on relève ensemble cette année ?" },
+  { id: "sweet-message", prompt: "Quel message d’amour veux-tu laisser à l’autre aujourd’hui ?" },
+  { id: "next-date", prompt: "Quelle est ta prochaine idée de date parfaite pour nous ?" },
+];
+
 const QUIZ_QUESTIONS = [
   {
     id: "symbol-au",
@@ -532,6 +545,12 @@ export default function App() {
   const [quizPlayer, setQuizPlayer] = useState(() => readStoredQuizPlayer());
   const [showTopMenu, setShowTopMenu] = useState(false);
   const [legacyRecoveryAttempted, setLegacyRecoveryAttempted] = useState(false);
+  const [showValentineQuizModal, setShowValentineQuizModal] = useState(false);
+  const [valentineDraftAnswers, setValentineDraftAnswers] = useState(() =>
+    VALENTINE_COUPLE_QUESTIONS.map(() => "")
+  );
+  const [valentineSubmitBusy, setValentineSubmitBusy] = useState(false);
+  const [valentineSubmitError, setValentineSubmitError] = useState("");
 
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -648,6 +667,14 @@ export default function App() {
     );
     return () => window.clearTimeout(timeout);
   }, [isValentineMode, todayKey]);
+
+  useEffect(() => {
+    if (!isValentineMode || !roomCode) {
+      setShowValentineQuizModal(false);
+      return;
+    }
+    setShowValentineQuizModal(true);
+  }, [isValentineMode, roomCode]);
 
   function activateRoom(nextCode) {
     const normalized = normalizeRoomCode(nextCode);
@@ -862,6 +889,46 @@ export default function App() {
   const quizMyAnswer = quizAnswers[quizPlayer];
   const quizOtherAnswer = quizAnswers[quizOtherPlayer];
   const bothAnswered = Boolean(quizAnswers.lea?.answeredAt && quizAnswers.gauthier?.answeredAt);
+  const valentineLabel = quizPlayer === "lea" ? "Léa" : "Gauthier";
+  const valentineOtherLabel = quizOtherPlayer === "lea" ? "Léa" : "Gauthier";
+  const valentineAnswersByPlayer = useMemo(() => {
+    const baseQuiz = shared.valentineCoupleQuiz;
+    if (!baseQuiz || baseQuiz.dateKey !== VALENTINE_DAY_KEY) {
+      return { lea: null, gauthier: null };
+    }
+    return {
+      lea: baseQuiz.answers?.lea || null,
+      gauthier: baseQuiz.answers?.gauthier || null,
+    };
+  }, [shared.valentineCoupleQuiz]);
+  const myValentineSubmission = valentineAnswersByPlayer[quizPlayer];
+  const otherValentineSubmission = valentineAnswersByPlayer[quizOtherPlayer];
+  const valentineBothSubmitted = Boolean(
+    valentineAnswersByPlayer.lea?.submittedAt && valentineAnswersByPlayer.gauthier?.submittedAt
+  );
+  const canSubmitValentineQuiz = useMemo(
+    () => valentineDraftAnswers.every((answer) => String(answer || "").trim()),
+    [valentineDraftAnswers]
+  );
+  const myValentineAnswersSerialized = useMemo(() => {
+    const payload = {};
+    VALENTINE_COUPLE_QUESTIONS.forEach((question) => {
+      payload[question.id] = String(myValentineSubmission?.answers?.[question.id] || "");
+    });
+    return JSON.stringify(payload);
+  }, [myValentineSubmission?.answers]);
+
+  useEffect(() => {
+    if (!isValentineMode) return;
+    let baseAnswers = {};
+    try {
+      baseAnswers = JSON.parse(myValentineAnswersSerialized);
+    } catch {
+      baseAnswers = {};
+    }
+    setValentineDraftAnswers(VALENTINE_COUPLE_QUESTIONS.map((question) => baseAnswers[question.id] || ""));
+    setValentineSubmitError("");
+  }, [isValentineMode, quizPlayer, myValentineAnswersSerialized]);
 
   function quizAnswerLabel(answer) {
     if (!answer) return "En attente";
@@ -900,6 +967,58 @@ export default function App() {
     });
 
     if (isCorrectNow) fireConfetti({ particleCount: 110, spread: 80, origin: { y: 0.7 } });
+  }
+
+  function valentineAnswerFor(submission, questionId) {
+    return String(submission?.answers?.[questionId] || "").trim() || "—";
+  }
+
+  function handleValentineAnswerChange(index, value) {
+    setValentineDraftAnswers((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
+  }
+
+  async function submitValentineQuiz() {
+    if (!canWriteInRoom) return;
+    if (!canSubmitValentineQuiz) {
+      setValentineSubmitError("Répondez aux 10 questions avant d’envoyer.");
+      return;
+    }
+
+    const normalizedAnswers = {};
+    VALENTINE_COUPLE_QUESTIONS.forEach((question, index) => {
+      normalizedAnswers[question.id] = String(valentineDraftAnswers[index] || "").trim();
+    });
+
+    setValentineSubmitBusy(true);
+    setValentineSubmitError("");
+
+    await updateRoomTransaction((base) => {
+      const baseQuiz =
+        base.valentineCoupleQuiz && base.valentineCoupleQuiz.dateKey === VALENTINE_DAY_KEY
+          ? base.valentineCoupleQuiz
+          : { dateKey: VALENTINE_DAY_KEY, answers: {} };
+
+      return {
+        valentineCoupleQuiz: {
+          dateKey: VALENTINE_DAY_KEY,
+          answers: {
+            ...(baseQuiz.answers || {}),
+            [quizPlayer]: {
+              answers: normalizedAnswers,
+              submittedAt: Date.now(),
+              uid: currentUser?.uid || "",
+            },
+          },
+        },
+      };
+    });
+
+    fireConfetti({ particleCount: 130, spread: 78, origin: { y: 0.68 } });
+    setValentineSubmitBusy(false);
   }
 
   // Meet (résumé / édition)
@@ -1210,10 +1329,144 @@ export default function App() {
 
         {isValentineMode && (
           <div className="valentineBanner" role="status" aria-live="polite">
-            <span className="valentineBannerText">Edition Saint-Valentin • 14 février uniquement</span>
+            <div className="valentineBannerMain">
+              <span className="valentineBannerText">Edition Saint-Valentin • 14 février uniquement</span>
+              <button className="valentineBannerBtn" type="button" onClick={() => setShowValentineQuizModal(true)}>
+                Ouvrir le mini quiz
+              </button>
+            </div>
             <span className="valentineBadgeIcon" aria-hidden>
               💘
             </span>
+          </div>
+        )}
+
+        {isValentineMode && showValentineQuizModal && (
+          <div className="valentineQuizOverlay" role="dialog" aria-modal="true" aria-labelledby="valentineQuizTitle">
+            <div className="valentineQuizModal">
+              <div className="valentineQuizHeader">
+                <div>
+                  <h2 className="valentineQuizTitle" id="valentineQuizTitle">
+                    Mini quiz de couple • 10 questions
+                  </h2>
+                  <p className="valentineQuizIntro">
+                    Répondez chacun de votre côté. Une fois envoyé, l’autre voit directement les réponses.
+                  </p>
+                </div>
+                <button className="valentineQuizCloseBtn" type="button" onClick={() => setShowValentineQuizModal(false)}>
+                  Fermer
+                </button>
+              </div>
+
+              <div className="small" style={{ marginTop: 8, textAlign: "left" }}>
+                Tu réponds en tant que :
+              </div>
+              <div className="subtabs" style={{ marginTop: 6 }}>
+                <button
+                  className={`subtabBtn ${quizPlayer === "lea" ? "subtabBtnActive" : ""}`}
+                  type="button"
+                  onClick={() => setQuizPlayer("lea")}
+                >
+                  Léa
+                </button>
+                <button
+                  className={`subtabBtn ${quizPlayer === "gauthier" ? "subtabBtnActive" : ""}`}
+                  type="button"
+                  onClick={() => setQuizPlayer("gauthier")}
+                >
+                  Gauthier
+                </button>
+              </div>
+
+              {myValentineSubmission?.submittedAt ? (
+                <div className="valentineQuizSent">✅ Réponses envoyées pour {valentineLabel}.</div>
+              ) : (
+                <>
+                  <div className="valentineQuizQuestionList">
+                    {VALENTINE_COUPLE_QUESTIONS.map((question, index) => (
+                      <div className="valentineQuizQuestionItem" key={question.id}>
+                        <label className="label" htmlFor={`valentine-${question.id}`} style={{ marginTop: 0 }}>
+                          {index + 1}. {question.prompt}
+                        </label>
+                        <textarea
+                          id={`valentine-${question.id}`}
+                          className="textarea"
+                          value={valentineDraftAnswers[index] || ""}
+                          onChange={(e) => handleValentineAnswerChange(index, e.target.value)}
+                          placeholder="Ta réponse..."
+                          maxLength={180}
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  {valentineSubmitError && (
+                    <div className="small" style={{ marginTop: 8, textAlign: "left" }}>
+                      ⚠️ {valentineSubmitError}
+                    </div>
+                  )}
+
+                  <button
+                    className="btn"
+                    type="button"
+                    onClick={submitValentineQuiz}
+                    disabled={!canWriteInRoom || !canSubmitValentineQuiz || valentineSubmitBusy}
+                  >
+                    {valentineSubmitBusy ? "Envoi..." : `Envoyer mes réponses (${valentineLabel})`}
+                  </button>
+                </>
+              )}
+
+              <div className="sep" />
+              <div className="sectionTitle">
+                <span>Réponses partagées</span>
+                <span className="badge">💌</span>
+              </div>
+
+              <div className="valentineAnswerPanels">
+                <div className="panel">
+                  <div className="panelTitle">{valentineLabel}</div>
+                  {myValentineSubmission?.submittedAt ? (
+                    <div className="valentineAnswerList">
+                      {VALENTINE_COUPLE_QUESTIONS.map((question, index) => (
+                        <div className="valentineAnswerItem" key={`${question.id}-${quizPlayer}`}>
+                          <div className="valentineAnswerPrompt">
+                            {index + 1}. {question.prompt}
+                          </div>
+                          <div className="valentineAnswerValue">{valentineAnswerFor(myValentineSubmission, question.id)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="sub">Pas encore répondu.</div>
+                  )}
+                </div>
+
+                <div className="panel">
+                  <div className="panelTitle blue">{valentineOtherLabel}</div>
+                  {otherValentineSubmission?.submittedAt ? (
+                    <div className="valentineAnswerList">
+                      {VALENTINE_COUPLE_QUESTIONS.map((question, index) => (
+                        <div className="valentineAnswerItem" key={`${question.id}-${quizOtherPlayer}`}>
+                          <div className="valentineAnswerPrompt">
+                            {index + 1}. {question.prompt}
+                          </div>
+                          <div className="valentineAnswerValue">{valentineAnswerFor(otherValentineSubmission, question.id)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="sub">{valentineOtherLabel} n’a pas encore envoyé ses réponses.</div>
+                  )}
+                </div>
+              </div>
+
+              {valentineBothSubmitted && (
+                <div className="small" style={{ marginTop: 10 }}>
+                  Vous avez tous les deux terminé le mini quiz Saint-Valentin 💘
+                </div>
+              )}
+            </div>
           </div>
         )}
 
