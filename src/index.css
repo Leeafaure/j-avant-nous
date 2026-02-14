@@ -19,6 +19,35 @@ a, button, input, textarea { font:inherit; color:inherit; }
 a{ color: rgba(140,60,110,.95); text-decoration:none; }
 
 .app{ min-height:100%; display:flex; justify-content:center; }
+.appValentine{
+  background:
+    radial-gradient(760px circle at 8% 0%, rgba(255,84,137,.20), transparent 56%),
+    radial-gradient(760px circle at 94% 10%, rgba(255,140,168,.24), transparent 54%),
+    linear-gradient(140deg, #ffe0ea, #fff7fa 58%, #ffeecf);
+}
+.appValentine .shell{
+  position:relative;
+}
+.appValentine .shell::before{
+  content:"";
+  position:absolute;
+  top:-32px;
+  left:-40px;
+  right:-40px;
+  height:170px;
+  pointer-events:none;
+  background:
+    radial-gradient(circle at 10% 72%, rgba(243,59,112,.22) 0 6px, transparent 7px),
+    radial-gradient(circle at 30% 25%, rgba(240,94,140,.24) 0 7px, transparent 8px),
+    radial-gradient(circle at 55% 68%, rgba(234,90,139,.20) 0 6px, transparent 7px),
+    radial-gradient(circle at 80% 28%, rgba(252,143,114,.20) 0 7px, transparent 8px),
+    radial-gradient(circle at 95% 72%, rgba(248,84,132,.16) 0 6px, transparent 7px);
+  animation: valentineFloat 7s ease-in-out infinite;
+}
+.appValentine .shell > *{
+  position:relative;
+  z-index:1;
+}
 .shell{
   width:100%; max-width:430px; padding:22px 16px;
   padding-bottom: calc(var(--tabH) + 22px + env(safe-area-inset-bottom));
@@ -105,12 +134,56 @@ a{ color: rgba(140,60,110,.95); text-decoration:none; }
   background: rgba(255,255,255,.75); border:1px solid var(--stroke); box-shadow:0 10px 24px rgba(0,0,0,.06);
   color: var(--muted); font-size:12px; user-select:none;
 }
+.appValentine .badge{
+  background: rgba(255,255,255,.86);
+  border-color: rgba(209,57,108,.22);
+}
+.valentineBanner{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin:0 0 12px;
+  padding:10px 12px;
+  border-radius:14px;
+  border:1px solid rgba(206,46,99,.24);
+  background: linear-gradient(92deg, rgba(255,219,231,.96), rgba(255,242,211,.94));
+  box-shadow: 0 10px 22px rgba(177,38,89,.12);
+}
+.valentineBannerText{
+  font-size:12px;
+  font-weight:900;
+  color: rgba(128,26,63,.84);
+}
+.valentineBadgeIcon{
+  font-size:19px;
+  animation: valentinePulse 1.8s ease-in-out infinite;
+}
+.valentineHomeNote{
+  margin:-2px 0 14px;
+  padding:11px 12px;
+  border-radius:14px;
+  border:1px solid rgba(211,55,106,.23);
+  background: rgba(255,255,255,.78);
+  color: rgba(121,27,61,.84);
+  font-size:13px;
+  font-weight:800;
+  line-height:1.35;
+  box-shadow: 0 10px 20px rgba(177,38,89,.10);
+  animation: valentineCardIn 420ms cubic-bezier(.2,.7,.2,1);
+}
 .h1{ font-size:26px; font-weight:900; margin:10px 0 8px; letter-spacing:-.03em; }
 .p{ margin:0 0 18px; color:var(--muted); line-height:1.35; }
 
 .card{
   background: var(--card); border: 1px solid var(--stroke); border-radius: var(--radius);
   box-shadow: var(--shadow); padding: 18px 16px; backdrop-filter: blur(6px);
+}
+.appValentine .card{
+  background: linear-gradient(155deg, rgba(255,255,255,.95), rgba(255,246,250,.90));
+  border-color: rgba(209,57,108,.19);
+  box-shadow: 0 18px 36px rgba(170,35,84,.12);
+  animation: valentineCardIn 440ms cubic-bezier(.2,.7,.2,1);
 }
 .sectionTitle{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; color:var(--muted); font-size:13px; font-weight:900; }
 .label{ font-size:15px; margin:10px 0 8px; color:var(--muted); font-weight:700; }
@@ -121,6 +194,10 @@ a{ color: rgba(140,60,110,.95); text-decoration:none; }
 .input{ padding:12px; }
 .textarea{ padding:12px; min-height:92px; resize:vertical; line-height:1.25; }
 .input:focus, .textarea:focus{ border-color:#f3b6cf; box-shadow:0 0 0 4px rgba(243,182,207,.35); }
+.appValentine .input:focus, .appValentine .textarea:focus{
+  border-color: rgba(240,98,140,.55);
+  box-shadow: 0 0 0 4px rgba(240,98,140,.2);
+}
 .result{ margin-top:14px; font-size:20px; line-height:1.25; font-weight:800; }
 .sub{ margin-top:6px; font-size:14px; color:var(--muted); line-height:1.25; }
 
@@ -137,6 +214,18 @@ a{ color: rgba(140,60,110,.95); text-decoration:none; }
 .panelTitle{ font-size:11px; letter-spacing:.14em; text-transform:uppercase; color: rgba(209,88,141,.80); font-weight:900; }
 .panelTitle.blue{ color: rgba(70,140,210,.75); }
 .panelBody{ margin-top:6px; font-size:15px; font-weight:750; color:var(--text); line-height:1.25; }
+.appValentine .panel,
+.appValentine .item,
+.appValentine .topMenuPanel,
+.appValentine .tabbar{
+  background: rgba(255,250,252,.9);
+  border-color: rgba(209,57,108,.17);
+}
+.appValentine .panelTitle,
+.appValentine .panelTitle.blue,
+.appValentine .roomPillLabel{
+  color: rgba(182,33,84,.82);
+}
 
 .btn{
   margin-top:12px; width:100%; border:0; border-radius:16px; padding:12px 14px;
@@ -144,12 +233,19 @@ a{ color: rgba(140,60,110,.95); text-decoration:none; }
   background: linear-gradient(90deg, #ffc6dc, #d9efff);
   box-shadow: 0 14px 28px rgba(0,0,0,.10);
 }
+.appValentine .btn{
+  background: linear-gradient(100deg, #ffd2df, #ffdba5 55%, #ffe8d1);
+  box-shadow: 0 14px 28px rgba(185,43,91,.16);
+}
 .btn:active{ transform: scale(0.99); }
 .btn:disabled{ opacity: .55; }
 
 .sep{ height:1px; background: rgba(90,42,74,.10); margin:12px 0; }
 .small{ margin-top:10px; font-size:12px; color: rgba(90,42,74,.60); text-align:center; }
 .heart{ text-align:center; font-size:30px; margin-top:12px; }
+.appValentine .heart{
+  filter: drop-shadow(0 6px 12px rgba(185,43,91,.2));
+}
 
 .list{ display:flex; flex-direction:column; gap:10px; margin-top:10px; }
 .item{ background: rgba(255,255,255,.84); border:1px solid rgba(90,42,74,.10); border-radius: var(--radius2); padding:12px; box-shadow: 0 10px 22px rgba(0,0,0,.06); }
@@ -171,6 +267,10 @@ a{ color: rgba(140,60,110,.95); text-decoration:none; }
   color: rgba(90,42,74,.75); font-weight:950; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:12px;
 }
 .tabbtnActive{ background: linear-gradient(90deg, rgba(255,198,220,.75), rgba(217,239,255,.85)); color:var(--text); box-shadow: 0 10px 22px rgba(0,0,0,.08); }
+.appValentine .tabbtnActive{
+  background: linear-gradient(100deg, rgba(255,210,223,.9), rgba(255,219,165,.85));
+  box-shadow: 0 10px 22px rgba(185,43,91,.16);
+}
 .tabicon{ font-size:16px; line-height:1; }
 canvas{ pointer-events:none !important; }
 
@@ -196,6 +296,9 @@ canvas{ pointer-events:none !important; }
   background: linear-gradient(90deg, rgba(255,198,220,.72), rgba(217,239,255,.85));
   color: var(--text);
   box-shadow: 0 8px 20px rgba(0,0,0,.08);
+}
+.appValentine .subtabBtnActive{
+  background: linear-gradient(100deg, rgba(255,210,223,.85), rgba(255,219,165,.8));
 }
 
 /* Calendar styles */
@@ -323,4 +426,29 @@ canvas{ pointer-events:none !important; }
 .react-calendar__tile--active:enabled:hover,
 .react-calendar__tile--active:enabled:focus {
   background: rgba(243,182,207,.9);
+}
+
+@keyframes valentinePulse {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.12); }
+  70% { transform: scale(0.98); }
+  100% { transform: scale(1); }
+}
+@keyframes valentineFloat {
+  0% { transform: translateY(0px); opacity: .72; }
+  50% { transform: translateY(-8px); opacity: .98; }
+  100% { transform: translateY(0px); opacity: .72; }
+}
+@keyframes valentineCardIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .appValentine .shell::before,
+  .appValentine .card,
+  .valentineBadgeIcon,
+  .valentineHomeNote {
+    animation: none !important;
+  }
 }

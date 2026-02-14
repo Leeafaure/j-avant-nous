@@ -11,6 +11,23 @@ const ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const LEGACY_ROOM_CODE = "gauthier-lea-2026-coeur";
 
 const QUIZ_PLAYER_STORAGE_KEY = "avant-nous-quiz-player-v1";
+const VALENTINE_DAY_KEY = "2026-02-14";
+
+const DEFAULT_TAB_ICONS = {
+  home: "🏠",
+  meet: "📍",
+  playlist: "🎧",
+  rests: "🛌",
+  activities: "✅",
+};
+
+const VALENTINE_TAB_ICONS = {
+  home: "💘",
+  meet: "🌹",
+  playlist: "💌",
+  rests: "🫶",
+  activities: "🎁",
+};
 
 const QUIZ_QUESTIONS = [
   {
@@ -523,6 +540,9 @@ export default function App() {
   }, []);
 
   const todayKey = useMemo(() => todayKeyLocal(now), [now]);
+  const isValentineMode = todayKey === VALENTINE_DAY_KEY;
+  const appClassName = `app${isValentineMode ? " appValentine" : ""}`;
+  const tabIcons = isValentineMode ? VALENTINE_TAB_ICONS : DEFAULT_TAB_ICONS;
   const untilMidnight = useMemo(() => msUntilMidnightLocal(now), [now]);
   const untilMidnightParts = useMemo(() => msToParts(untilMidnight), [untilMidnight]);
 
@@ -612,6 +632,22 @@ export default function App() {
     setLegacyRecoveryAttempted(true);
     activateRoom(LEGACY_ROOM_CODE);
   }, [currentUser, legacyRecoveryAttempted, roomCode]);
+
+  useEffect(() => {
+    if (!isValentineMode || typeof window === "undefined") return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+
+    const effectKey = `avant-nous-valentine-${todayKey}`;
+    if (window.sessionStorage.getItem(effectKey)) return;
+    window.sessionStorage.setItem(effectKey, "1");
+
+    fireConfetti({ particleCount: 70, spread: 52, origin: { y: 0.75 }, scalar: 0.9 });
+    const timeout = window.setTimeout(
+      () => fireConfetti({ particleCount: 50, spread: 46, origin: { y: 0.7 }, scalar: 0.8 }),
+      240
+    );
+    return () => window.clearTimeout(timeout);
+  }, [isValentineMode, todayKey]);
 
   function activateRoom(nextCode) {
     const normalized = normalizeRoomCode(nextCode);
@@ -1079,7 +1115,7 @@ export default function App() {
 
   if (!authReady) {
     return (
-      <div className="app">
+      <div className={appClassName}>
         <div className="shell">
           <div className="card">
             <div className="h1">Connexion…</div>
@@ -1092,7 +1128,7 @@ export default function App() {
 
   if (authError || !currentUser) {
     return (
-      <div className="app">
+      <div className={appClassName}>
         <div className="shell">
           <div className="card">
             <div className="h1">Erreur d’authentification ⚠️</div>
@@ -1105,7 +1141,7 @@ export default function App() {
 
   if (!roomCode) {
     return (
-      <div className="app">
+      <div className={appClassName}>
         <div className="shell">
           <div className="h1">Salon privé 🔐</div>
           <p className="p">Crée un salon, puis partage le code à Gauthier/Léa pour vous connecter tous les deux.</p>
@@ -1163,7 +1199,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className={appClassName}>
       <div className="shell">
         <div className="topbar">
           <span className="badge">💞 Avant de te revoir</span>
@@ -1171,6 +1207,15 @@ export default function App() {
             {showTopMenu ? "Fermer" : "Menu"}
           </button>
         </div>
+
+        {isValentineMode && (
+          <div className="valentineBanner" role="status" aria-live="polite">
+            <span className="valentineBannerText">Edition Saint-Valentin • 14 février uniquement</span>
+            <span className="valentineBadgeIcon" aria-hidden>
+              💘
+            </span>
+          </div>
+        )}
 
         {showTopMenu && (
           <div className="topMenuPanel">
@@ -1195,6 +1240,11 @@ export default function App() {
           <>
             <div className="h1">Avant de te revoir 💖</div>
             <p className="p">Les retrouvailles de Gauthier et Léa</p>
+            {isValentineMode && (
+              <div className="valentineHomeNote">
+                ❤️ Bonne Saint-Valentin à vous deux. Mode spécial actif uniquement aujourd’hui, retour automatique demain.
+              </div>
+            )}
 
             <div className="card">
               <div className="sectionTitle">
@@ -2131,23 +2181,23 @@ export default function App() {
         <div className="tabs">
           <div className="tabbar">
             <button className={`tabbtn ${tab === "home" ? "tabbtnActive" : ""}`} onClick={() => setTab("home")}>
-              <div className="tabicon">🏠</div>
+              <div className="tabicon">{tabIcons.home}</div>
               Accueil
             </button>
             <button className={`tabbtn ${tab === "meet" ? "tabbtnActive" : ""}`} onClick={() => setTab("meet")}>
-              <div className="tabicon">📍</div>
+              <div className="tabicon">{tabIcons.meet}</div>
               Lieu
             </button>
             <button className={`tabbtn ${tab === "playlist" ? "tabbtnActive" : ""}`} onClick={() => setTab("playlist")}>
-              <div className="tabicon">🎧</div>
+              <div className="tabicon">{tabIcons.playlist}</div>
               Playlist
             </button>
             <button className={`tabbtn ${tab === "rests" ? "tabbtnActive" : ""}`} onClick={() => setTab("rests")}>
-              <div className="tabicon">🛌</div>
+              <div className="tabicon">{tabIcons.rests}</div>
               Repos
             </button>
             <button className={`tabbtn ${tab === "activities" ? "tabbtnActive" : ""}`} onClick={() => setTab("activities")}>
-              <div className="tabicon">✅</div>
+              <div className="tabicon">{tabIcons.activities}</div>
               Activités
             </button>
           </div>
