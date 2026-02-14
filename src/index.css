@@ -5,10 +5,11 @@
   --radius: 22px; --radius2: 16px; --tabH: 86px;
 }
 *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-html, body, #root{ height:100%; }
+html, body, #root{ height:100%; width:100%; }
 body{
   margin:0; font-family:-apple-system, BlinkMacSystemFont, "Poppins", system-ui, sans-serif;
   color:var(--text);
+  overflow-x:hidden;
   background:
     radial-gradient(900px circle at 12% 8%, rgba(255,160,200,.35), transparent 52%),
     radial-gradient(900px circle at 92% 18%, rgba(160,210,255,.35), transparent 52%),
@@ -18,7 +19,7 @@ body{
 a, button, input, textarea { font:inherit; color:inherit; }
 a{ color: rgba(140,60,110,.95); text-decoration:none; }
 
-.app{ min-height:100%; display:flex; justify-content:center; }
+.app{ min-height:100%; width:100%; display:flex; justify-content:center; overflow-x:clip; }
 .appValentine{
   background:
     radial-gradient(760px circle at 8% 0%, rgba(255,84,137,.20), transparent 56%),
@@ -49,7 +50,7 @@ a{ color: rgba(140,60,110,.95); text-decoration:none; }
   z-index:1;
 }
 .shell{
-  width:100%; max-width:430px; padding:22px 16px;
+  width:min(100%, 430px); padding:22px 16px;
   padding-bottom: calc(var(--tabH) + 22px + env(safe-area-inset-bottom));
 }
 .topbar{
@@ -170,6 +171,7 @@ a{ color: rgba(140,60,110,.95); text-decoration:none; }
   font-size:11px;
   font-weight:900;
   padding:6px 10px;
+  max-width:100%;
 }
 .valentineBadgeIcon{
   font-size:19px;
@@ -185,17 +187,20 @@ a{ color: rgba(140,60,110,.95); text-decoration:none; }
   padding:12px 10px calc(12px + env(safe-area-inset-bottom));
   background: rgba(39, 18, 29, .45);
   backdrop-filter: blur(2px);
+  overscroll-behavior: contain;
 }
 .valentineQuizModal{
   width:100%;
   max-width:430px;
   max-height: calc(100vh - 22px - env(safe-area-inset-bottom));
+  max-height: calc(100dvh - 22px - env(safe-area-inset-bottom));
   overflow:auto;
   padding:16px 14px;
   border-radius:20px;
   border:1px solid rgba(209,57,108,.24);
   background: linear-gradient(170deg, rgba(255,252,253,.98), rgba(255,244,248,.96));
   box-shadow: 0 16px 36px rgba(86, 22, 47, .28);
+  overscroll-behavior: contain;
 }
 .valentineQuizHeader{
   display:flex;
@@ -328,8 +333,8 @@ a{ color: rgba(140,60,110,.95); text-decoration:none; }
 .tileLabel{ font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:900; }
 .tileValue{ margin-top:6px; font-size:22px; font-weight:900; font-variant-numeric: tabular-nums; }
 
-.grid2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
-.row{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
+.grid2{ display:grid; grid-template-columns:repeat(auto-fit, minmax(168px, 1fr)); gap:10px; margin-top:12px; }
+.row{ display:grid; grid-template-columns:repeat(auto-fit, minmax(168px, 1fr)); gap:10px; margin-top:12px; }
 .panel{ background: rgba(255,247,251,1); border:1px solid rgba(244,220,232,1); border-radius: var(--radius2); padding:12px; }
 .panelTitle{ font-size:11px; letter-spacing:.14em; text-transform:uppercase; color: rgba(209,88,141,.80); font-weight:900; }
 .panelTitle.blue{ color: rgba(70,140,210,.75); }
@@ -378,13 +383,23 @@ a{ color: rgba(140,60,110,.95); text-decoration:none; }
   padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
 }
 .tabbar{
-  width:100%; max-width:430px; margin:0 auto; display:grid; grid-template-columns:repeat(5, 1fr); gap:8px;
+  width:100%; max-width:430px; margin:0 auto; display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:8px;
   padding:10px; border-radius:22px; background: rgba(255,255,255,.88);
   border:1px solid var(--stroke); box-shadow: 0 14px 36px rgba(0,0,0,.10); backdrop-filter: blur(10px);
 }
 .tabbtn{
+  min-width:0;
   border:0; background:transparent; border-radius:16px; padding:10px 8px;
   color: rgba(90,42,74,.75); font-weight:950; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:12px;
+}
+.tablabel{
+  display:block;
+  width:100%;
+  text-align:center;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  line-height:1.1;
 }
 .tabbtnActive{ background: linear-gradient(90deg, rgba(255,198,220,.75), rgba(217,239,255,.85)); color:var(--text); box-shadow: 0 10px 22px rgba(0,0,0,.08); }
 .appValentine .tabbtnActive{
@@ -432,15 +447,17 @@ canvas{ pointer-events:none !important; }
   .topbarMenuBtn{ font-size:11px; padding:7px 10px; }
   .tabbar{ gap:6px; padding:8px; }
   .tabbtn{ font-size:11px; padding:9px 4px; }
+  .tablabel{ font-size:10px; }
   .tabicon{ font-size:15px; }
   .valentineQuizModal{ padding:14px 12px; }
   .valentineQuizTitle{ font-size:17px; }
   .valentineQuizIntro{ font-size:12px; }
+  .valentineBanner{
+    align-items:flex-start;
+  }
 }
 
 @media (max-width: 360px) {
-  .grid2,
-  .row,
   .subtabs{
     grid-template-columns:1fr;
   }
@@ -456,6 +473,16 @@ canvas{ pointer-events:none !important; }
   .tileValue{ font-size:20px; }
   .tabs{
     padding:8px 8px calc(8px + env(safe-area-inset-bottom));
+  }
+  .tabbtn{
+    padding:8px 2px;
+    gap:2px;
+  }
+  .tablabel{
+    display:none;
+  }
+  .tabicon{
+    font-size:17px;
   }
   .valentineQuizHeader{
     flex-direction:column;

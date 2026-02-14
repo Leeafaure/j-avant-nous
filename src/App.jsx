@@ -2435,23 +2435,23 @@ export default function App() {
           <div className="tabbar">
             <button className={`tabbtn ${tab === "home" ? "tabbtnActive" : ""}`} onClick={() => setTab("home")}>
               <div className="tabicon">{tabIcons.home}</div>
-              Accueil
+              <span className="tablabel">Accueil</span>
             </button>
             <button className={`tabbtn ${tab === "meet" ? "tabbtnActive" : ""}`} onClick={() => setTab("meet")}>
               <div className="tabicon">{tabIcons.meet}</div>
-              Lieu
+              <span className="tablabel">Lieu</span>
             </button>
             <button className={`tabbtn ${tab === "playlist" ? "tabbtnActive" : ""}`} onClick={() => setTab("playlist")}>
               <div className="tabicon">{tabIcons.playlist}</div>
-              Playlist
+              <span className="tablabel">Playlist</span>
             </button>
             <button className={`tabbtn ${tab === "rests" ? "tabbtnActive" : ""}`} onClick={() => setTab("rests")}>
               <div className="tabicon">{tabIcons.rests}</div>
-              Repos
+              <span className="tablabel">Repos</span>
             </button>
             <button className={`tabbtn ${tab === "activities" ? "tabbtnActive" : ""}`} onClick={() => setTab("activities")}>
               <div className="tabicon">{tabIcons.activities}</div>
-              Activités
+              <span className="tablabel">Activités</span>
             </button>
           </div>
         </div>
